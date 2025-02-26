@@ -10,7 +10,7 @@ import "./StHSK.sol";
 
 /**
  * @title HashKeyChainStakingBase
- * @dev 基础功能实现，使用基于份额的质押模型
+ * @dev Basic functionality implementation, using a share-based staking model
  */
 abstract contract HashKeyChainStakingBase is 
     PausableUpgradeable, 
@@ -47,20 +47,20 @@ abstract contract HashKeyChainStakingBase is
         maxHskPerBlock = _maxHskPerBlock;
         minStakeAmount = _minStakeAmount;
         totalPooledHSK = 0;
-        stakeEndTime = type(uint256).max;  // 默认设为最大值
+        stakeEndTime = type(uint256).max;  // Default set to maximum value
         version = 1;
         
-        // 计算并设置默认年度预算
-        uint256 blocksPerYear = (365 * 24 * 3600) / 2; // 每年区块数（假设2秒出块）
+        // Calculate and set default annual budget
+        uint256 blocksPerYear = (365 * 24 * 3600) / 2; // Blocks per year (assuming 2 seconds per block)
         annualRewardsBudget = _hskPerBlock * blocksPerYear;
         
-        // 设置提前解锁惩罚
+        // Set early withdrawal penalties
         earlyWithdrawalPenalty[StakeType.FIXED_30_DAYS] = 500;    // 5%
         earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 1000;   // 10%
         earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 1500;  // 15%
         earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 2000;  // 20%
         
-        // 设置不同质押期的奖励加成
+        // Set bonus for different staking periods
         stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
         stakingBonus[StakeType.FIXED_90_DAYS] = 80;     // 0.8%
         stakingBonus[StakeType.FIXED_180_DAYS] = 200;   // 2.0%
@@ -73,7 +73,7 @@ abstract contract HashKeyChainStakingBase is
     }
 
     /**
-     * @dev 更新奖励池
+     * @dev Update reward pool
      */
     function updateRewardPool() public {
         if (block.number <= lastRewardBlock) {
@@ -88,19 +88,19 @@ abstract contract HashKeyChainStakingBase is
         uint256 multiplier = block.number - lastRewardBlock;
         uint256 hskReward = multiplier * hskPerBlock;
         
-        // 计算并限制 APR
-        uint256 annualReward = hskPerBlock * (365 days / 2); // 2秒一个块
+        // Calculate and limit APR
+        uint256 annualReward = hskPerBlock * (365 days / 2); // 2 seconds per block
         uint256 currentAPR = (annualReward * BASIS_POINTS) / totalPooledHSK;
         if (currentAPR > MAX_APR) {
             hskReward = (totalPooledHSK * MAX_APR * multiplier) / (BASIS_POINTS * (365 days / 2));
         }
         
-        // 检查合约是否有足够的HSK
+        // Check if contract has enough HSK
         if (reservedRewards >= hskReward) {
             totalPooledHSK += hskReward;
             reservedRewards -= hskReward;
             
-            // 更新汇率
+            // Update exchange rate
             emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
         } else {
             if (reservedRewards > 0) {
@@ -108,7 +108,7 @@ abstract contract HashKeyChainStakingBase is
                 hskReward = reservedRewards;
                 reservedRewards = 0;
                 
-                // 更新汇率
+                // Update exchange rate
                 emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
             }
             emit InsufficientRewards(hskReward, reservedRewards);
@@ -118,36 +118,36 @@ abstract contract HashKeyChainStakingBase is
     }
 
     /**
-     * @dev 计算指定份额对应的HSK数量
-     * @param _sharesAmount 份额数量
-     * @return HSK数量
+     * @dev Calculate HSK amount for specified share amount
+     * @param _sharesAmount Share amount
+     * @return HSK amount
      */
     function getHSKForShares(uint256 _sharesAmount) public view returns (uint256) {
         uint256 totalShares = stHSK.totalSupply();
         if (totalShares == 0) {
-            return _sharesAmount; // 初始1:1兑换率
+            return _sharesAmount; // Initial 1:1 exchange rate
         }
         return (_sharesAmount * totalPooledHSK) / totalShares;
     }
 
     /**
-     * @dev 计算指定HSK数量对应的份额
-     * @param _hskAmount HSK数量
-     * @return 份额数量
+     * @dev Calculate share amount for specified HSK amount
+     * @param _hskAmount HSK amount
+     * @return Share amount
      */
     function getSharesForHSK(uint256 _hskAmount) public view returns (uint256) {
         uint256 totalShares = stHSK.totalSupply();
         if (totalShares == 0 || totalPooledHSK == 0) {
-            return _hskAmount; // 初始1:1兑换率
+            return _hskAmount; // Initial 1:1 exchange rate
         }
         return (_hskAmount * totalShares) / totalPooledHSK;
     }
 
     /**
-     * @dev 安全HSK转账函数
-     * @param _to 接收地址
-     * @param _amount 金额
-     * @return 转账是否成功
+     * @dev Safe HSK transfer function
+     * @param _to Recipient address
+     * @param _amount Amount
+     * @return Whether transfer was successful
      */
     function safeHskTransfer(address payable _to, uint256 _amount) internal returns (bool) {
         uint256 availableBalance = address(this).balance - totalPooledHSK;
@@ -161,13 +161,13 @@ abstract contract HashKeyChainStakingBase is
     }
 
     /**
-     * @dev 获取当前HSK的年化收益率
-     * @param _stakeAmount 模拟质押金额
-     * @param _stakeType 质押类型
-     * @return 当前APR（基点）
+     * @dev Get current annual yield rate for HSK
+     * @param _stakeAmount Simulated staking amount
+     * @param _stakeType Stake type
+     * @return Current APR (basis points)
      */
     function getCurrentAPR(uint256 _stakeAmount, StakeType _stakeType) public view returns (uint256) {
-        // 基础APR计算 - 使用年度预算而非每区块奖励计算
+        // Base APR calculation - using annual budget instead of per-block rewards
         uint256 yearlyRewards = annualRewardsBudget;
         
         uint256 baseApr;
@@ -177,16 +177,16 @@ abstract contract HashKeyChainStakingBase is
             uint256 newTotal = totalPooledHSK + _stakeAmount;
             baseApr = (yearlyRewards * BASIS_POINTS) / newTotal;
             
-            // 确保不超过最大APR
+            // Ensure not exceeding maximum APR
             if (baseApr > MAX_APR) {
                 baseApr = MAX_APR;
             }
         }
         
-        // 添加质押期限加成
+        // Add staking duration bonus
         uint256 totalApr = baseApr + stakingBonus[_stakeType];
         
-        // 获取对应质押类型的最大APR
+        // Get maximum APR for corresponding stake type
         uint256 maxTypeApr;
         if (_stakeType == StakeType.FIXED_30_DAYS) {
             maxTypeApr = 120; // 1.2%
@@ -198,7 +198,7 @@ abstract contract HashKeyChainStakingBase is
             maxTypeApr = 1200; // 12.0%
         }
         
-        // 确保不超过该类型的最大APR
+        // Ensure not exceeding this type's maximum APR
         return totalApr > maxTypeApr ? maxTypeApr : totalApr;
     }
 

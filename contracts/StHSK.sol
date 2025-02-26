@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 
 /**
  * @title StHSK
- * @dev 代表对质押池份额的代币，价值会随着质押奖励积累而增加
+ * @dev Token representing shares in the staking pool, value increases as staking rewards accumulate
  */
 contract StHSK is ERC20, Ownable {
     constructor() ERC20("Staked HashKeyChain", "stHSK") Ownable(msg.sender) {
@@ -14,18 +14,18 @@ contract StHSK is ERC20, Ownable {
     }
 
     /**
-     * @dev 铸造新的份额代币，只能由质押合约（所有者）调用
-     * @param to 接收者地址
-     * @param sharesAmount 份额数量
+     * @dev Mint new share tokens, can only be called by the staking contract (owner)
+     * @param to Recipient address
+     * @param sharesAmount Share amount
      */
     function mint(address to, uint256 sharesAmount) external onlyOwner {
         _mint(to, sharesAmount);
     }
 
     /**
-     * @dev 销毁份额代币，只能由质押合约（所有者）调用
-     * @param from 销毁地址
-     * @param sharesAmount 份额数量
+     * @dev Burn share tokens, can only be called by the staking contract (owner)
+     * @param from Address to burn from
+     * @param sharesAmount Share amount
      */
     function burn(address from, uint256 sharesAmount) external onlyOwner {
         _burn(from, sharesAmount);

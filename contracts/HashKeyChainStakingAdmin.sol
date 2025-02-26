@@ -5,12 +5,12 @@ import "./HashKeyChainStakingOperations.sol";
 
 /**
  * @title HashKeyChainStakingAdmin
- * @dev 管理功能实现
+ * @dev Implementation of administrative functions
  */
 abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     /**
-     * @dev 更新每区块HSK奖励
-     * @param _hskPerBlock 新的每区块HSK奖励
+     * @dev Update HSK reward per block
+     * @param _hskPerBlock New HSK reward per block
      */
     function updateHskPerBlock(uint256 _hskPerBlock) external onlyOwner {
         require(_hskPerBlock <= maxHskPerBlock, "Exceeds maximum HSK per block");
@@ -23,8 +23,8 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
 
     /**
-     * @dev 更新最大每区块HSK奖励
-     * @param _maxHskPerBlock 新的最大每区块HSK奖励
+     * @dev Update maximum HSK reward per block
+     * @param _maxHskPerBlock New maximum HSK reward per block
      */
     function updateMaxHskPerBlock(uint256 _maxHskPerBlock) external onlyOwner {
         require(_maxHskPerBlock >= hskPerBlock, "Must be >= current hskPerBlock");
@@ -36,8 +36,8 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
 
     /**
-     * @dev 更新最小质押量
-     * @param _minStakeAmount 新的最小质押量
+     * @dev Update minimum staking amount
+     * @param _minStakeAmount New minimum staking amount
      */
     function updateMinStakeAmount(uint256 _minStakeAmount) external onlyOwner {
         require(_minStakeAmount > 0, "Min stake amount must be positive");
@@ -49,9 +49,9 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
 
     /**
-     * @dev 更新提前解锁惩罚率
-     * @param _stakeType 质押类型
-     * @param _penalty 新的惩罚率（基点）
+     * @dev Update early withdrawal penalty rate
+     * @param _stakeType Stake type
+     * @param _penalty New penalty rate (basis points)
      */
     function updateEarlyWithdrawalPenalty(StakeType _stakeType, uint256 _penalty) external onlyOwner {
         require(_penalty <= MAX_PENALTY, "Penalty too high");
@@ -63,9 +63,9 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
 
     /**
-     * @dev 更新质押奖励加成
-     * @param _stakeType 质押类型
-     * @param _bonus 新的奖励加成（基点）
+     * @dev Update staking bonus
+     * @param _stakeType Stake type
+     * @param _bonus New bonus (basis points)
      */
     function updateStakingBonus(StakeType _stakeType, uint256 _bonus) external onlyOwner {
         uint256 oldValue = stakingBonus[_stakeType];
@@ -75,22 +75,22 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
 
     /**
-     * @dev 暂停合约
+     * @dev Pause contract
      */
     function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @dev 解除暂停
+     * @dev Unpause contract
      */
     function unpause() external onlyOwner {
         _unpause();
     }
 
     /**
-     * @dev 更新实现版本（用于升级）
-     * @param _version 新版本号
+     * @dev Update implementation version (for upgrades)
+     * @param _version New version number
      */
     function updateVersion(uint256 _version) external onlyOwner {
         require(_version > version, "New version must be higher");
@@ -99,18 +99,18 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
     }
     
     /**
-    * @dev 设置年度奖励预算（用于APR计算）
-    * @param _annualBudget 年度预算金额（HSK）
+    * @dev Set annual rewards budget (for APR calculation)
+    * @param _annualBudget Annual budget amount (HSK)
     */
     function setAnnualRewardsBudget(uint256 _annualBudget) external onlyOwner {
         uint256 oldValue = annualRewardsBudget;
         annualRewardsBudget = _annualBudget;
         
-        // 计算对应的每区块奖励
-        uint256 blocksPerYear = (365 * 24 * 3600) / 2; // 每年区块数（假设2秒出块）
+        // Calculate corresponding reward per block
+        uint256 blocksPerYear = (365 * 24 * 3600) / 2; // Blocks per year (assuming 2 seconds per block)
         uint256 newHskPerBlock = _annualBudget / blocksPerYear;
         
-        // 更新每区块奖励率（不超过最大值）
+        // Update reward rate per block (not exceeding maximum)
         if (newHskPerBlock <= maxHskPerBlock) {
             updateRewardPool();
             hskPerBlock = newHskPerBlock;

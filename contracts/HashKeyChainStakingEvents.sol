@@ -5,10 +5,10 @@ import "./HashKeyChainStakingStorage.sol";
 
 /**
  * @title HashKeyChainStakingEvents
- * @dev 质押合约的事件定义
+ * @dev Definition of events for the staking contract
  */
 abstract contract HashKeyChainStakingEvents is HashKeyChainStakingStorage {
-    // 事件
+    // Events
     event Stake(address indexed user, uint256 hskAmount, uint256 sharesAmount, StakeType stakeType, uint256 lockEndTime, uint256 stakeId);
     event Unstake(address indexed user, uint256 sharesAmount, uint256 hskAmount, bool isEarlyWithdrawal, uint256 penalty, uint256 stakeId);
     event RewardsClaimed(address indexed user, uint256 amount);

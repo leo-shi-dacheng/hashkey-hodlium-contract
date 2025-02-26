@@ -12,7 +12,7 @@ import "./HashKeyChainStakingEmergency.sol";
 
 /**
  * @title HashKeyChainStaking
- * @dev 主质押合约，基于份额模型，用户可以选择锁定或非锁定质押
+ * @dev Main staking contract, based on share model, users can choose locked or unlocked staking
  */
 contract HashKeyChainStaking is 
     Initializable,
@@ -26,12 +26,12 @@ contract HashKeyChainStaking is
     }
 
     /**
-    * @dev 初始化合约
-    * @param _hskPerBlock 每区块HSK奖励
-    * @param _startBlock 开始区块
-    * @param _maxHskPerBlock 每区块最大奖励
-    * @param _minStakeAmount 最小质押量
-    * @param _annualBudget 年度预算（可选，如果为0则根据hskPerBlock计算）
+    * @dev Initialize the contract
+    * @param _hskPerBlock HSK reward per block
+    * @param _startBlock Starting block
+    * @param _maxHskPerBlock Maximum reward per block
+    * @param _minStakeAmount Minimum staking amount
+    * @param _annualBudget Annual budget (optional, if 0 it will be calculated based on hskPerBlock)
     */
     function initialize(
         uint256 _hskPerBlock,
@@ -53,8 +53,8 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 设置质押截止时间
-     * @param _endTime 新的截止时间
+     * @dev Set staking end time
+     * @param _endTime New end time
      */
     function setStakeEndTime(uint256 _endTime) external onlyOwner {
         require(_endTime > block.timestamp, "End time must be in future");
@@ -62,30 +62,30 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 检查质押是否开放
+     * @dev Check if staking is open
      */
     function isStakingOpen() public view returns (bool) {
         return block.timestamp < stakeEndTime;
     }
 
     /**
-     * @dev 获取当前stHSK兑换率（1 stHSK = ? HSK）
+     * @dev Get current stHSK exchange rate (1 stHSK = ? HSK)
      */
     function getCurrentExchangeRate() external view returns (uint256) {
         return getHSKForShares(PRECISION_FACTOR);
     }
 
     /**
-     * @dev 获取用户锁定质押数量
-     * @param _user 用户地址
+     * @dev Get user's locked stake count
+     * @param _user User address
      */
     function getUserLockedStakeCount(address _user) external view returns (uint256) {
         return lockedStakes[_user].length;
     }
 
     /**
-     * @dev 获取用户活跃（未提取）的锁定质押数量
-     * @param _user 用户地址
+     * @dev Get user's active (not withdrawn) locked stake count
+     * @param _user User address
      */
     function getUserActiveLockedStakes(address _user) external view returns (uint256) {
         LockedStake[] storage userStakes = lockedStakes[_user];
@@ -101,9 +101,9 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 获取锁定质押信息
-     * @param _user 用户地址
-     * @param _stakeId 质押ID
+     * @dev Get locked stake information
+     * @param _user User address
+     * @param _stakeId Stake ID
      */
     function getLockedStakeInfo(address _user, uint256 _stakeId) external view returns (
         uint256 sharesAmount,
@@ -127,15 +127,15 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 获取合约总锁仓价值
+     * @dev Get total value locked in the contract
      */
     function totalValueLocked() external view returns (uint256) {
         return totalPooledHSK;
     }
 
     /**
-     * @dev 获取所有质押期限的APR
-     * @param _stakeAmount 模拟质押金额
+     * @dev Get APRs for all staking durations
+     * @param _stakeAmount Simulated staking amount
      */
     function getAllStakingAPRs(uint256 _stakeAmount) external view returns (
         uint256[4] memory estimatedAPRs,
@@ -155,8 +155,8 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 获取更详细的质押统计信息
-     * @param _simulatedStakeAmount 模拟质押金额
+     * @dev Get detailed staking statistics
+     * @param _simulatedStakeAmount Simulated staking amount
      */
     function getDetailedStakingStats(uint256 _simulatedStakeAmount) external view returns (
         uint256 totalStakedAmount,
@@ -167,25 +167,25 @@ contract HashKeyChainStaking is
     ) {
         totalStakedAmount = totalPooledHSK;
         
-        // 设置不同的质押期限（秒）
+        // Set different staking durations (seconds)
         durations[0] = 30 days;
         durations[1] = 90 days;
         durations[2] = 180 days;
         durations[3] = 365 days;
         
-        // 基础奖励
+        // Base bonuses
         baseBonus[0] = stakingBonus[StakeType.FIXED_30_DAYS];
         baseBonus[1] = stakingBonus[StakeType.FIXED_90_DAYS];
         baseBonus[2] = stakingBonus[StakeType.FIXED_180_DAYS];
         baseBonus[3] = stakingBonus[StakeType.FIXED_365_DAYS];
         
-        // 最大可能APR
+        // Maximum possible APRs
         maxPossibleAPRs[0] = 120;   // MAX_APR_30_DAYS
         maxPossibleAPRs[1] = 350;   // MAX_APR_90_DAYS 
         maxPossibleAPRs[2] = 650;   // MAX_APR_180_DAYS
         maxPossibleAPRs[3] = 1200;  // MAX_APR_365_DAYS
         
-        // 计算当前估计APR
+        // Calculate current estimated APRs
         currentAPRs[0] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_30_DAYS);
         currentAPRs[1] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_90_DAYS);
         currentAPRs[2] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_180_DAYS);
@@ -195,30 +195,30 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 获取HSK质押的APR信息
-     * @param _stakeAmount 模拟质押金额
+     * @dev Get HSK staking APR information
+     * @param _stakeAmount Simulated staking amount
      */
     function getHSKStakingAPR(uint256 _stakeAmount) public view returns (
         uint256 baseApr,
         uint256 minApr,
         uint256 maxApr
     ) {
-        // 计算基础APR - 使用年度预算
+        // Calculate base APR - using annual budget
         uint256 yearlyRewards = annualRewardsBudget;
         
         if (totalPooledHSK == 0) {
             baseApr = MAX_APR > 1200 ? 1200 : MAX_APR; // MAX_APR_365_DAYS = 1200
-            return (baseApr, 120, 1200); // 返回默认值
+            return (baseApr, 120, 1200); // Return default values
         }
         
         uint256 newTotal = totalPooledHSK + _stakeAmount;
         baseApr = (yearlyRewards * BASIS_POINTS) / newTotal;
         
-        // 30天锁定的最小APR
+        // Minimum APR for 30-day lock
         minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 120 ? 
             120 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
         
-        // 365天锁定的最大APR
+        // Maximum APR for 365-day lock
         maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 1200 ? 
             1200 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
             
@@ -226,10 +226,10 @@ contract HashKeyChainStaking is
     }
 
     /**
-     * @dev 接收HSK的回调函数
+     * @dev Callback function for receiving HSK
      */
     receive() external payable {
-        // 将接收的HSK视为奖励
+        // Treat received HSK as rewards
         reservedRewards += msg.value;
         emit RewardsAdded(msg.value, msg.sender);
     }
