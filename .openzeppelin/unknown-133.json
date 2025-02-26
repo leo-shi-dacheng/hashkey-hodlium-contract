@@ -1,0 +1,317 @@
+{
+  "manifestVersion": "3.2",
+  "proxies": [
+    {
+      "address": "0xC027985cda8DD019d80c74E06EFE44158D1305ac",
+      "txHash": "0x5a3fb4c06b1844c27784ddc73f05c07776cdbd70422a251e247121af986a6664",
+      "kind": "transparent"
+    }
+  ],
+  "impls": {
+    "680eaa4e92eca09d373d9ee4d5cd11c1919b547d30111433a4e4e8c23ebc5cf1": {
+      "address": "0x4036b816A806B77112Dd6Cb0B0BDF627e1Dac9C3",
+      "txHash": "0x6800ba59e39a12d87dcdcd872f8f1d1179ad0ef69b5b3970506f303b33cfba17",
+      "layout": {
+        "solcVersion": "0.8.28",
+        "storage": [
+          {
+            "label": "stHSK",
+            "offset": 0,
+            "slot": "0",
+            "type": "t_contract(StHSK)4096",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:31"
+          },
+          {
+            "label": "totalPooledHSK",
+            "offset": 0,
+            "slot": "1",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:33"
+          },
+          {
+            "label": "hskPerBlock",
+            "offset": 0,
+            "slot": "2",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:36"
+          },
+          {
+            "label": "lastRewardBlock",
+            "offset": 0,
+            "slot": "3",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:36"
+          },
+          {
+            "label": "startBlock",
+            "offset": 0,
+            "slot": "4",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:38"
+          },
+          {
+            "label": "maxHskPerBlock",
+            "offset": 0,
+            "slot": "5",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:39"
+          },
+          {
+            "label": "lockedStakes",
+            "offset": 0,
+            "slot": "6",
+            "type": "t_mapping(t_address,t_array(t_struct(LockedStake)3997_storage)dyn_storage)",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:45"
+          },
+          {
+            "label": "reservedRewards",
+            "offset": 0,
+            "slot": "7",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:48"
+          },
+          {
+            "label": "minStakeAmount",
+            "offset": 0,
+            "slot": "8",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:51"
+          },
+          {
+            "label": "earlyWithdrawalPenalty",
+            "offset": 0,
+            "slot": "9",
+            "type": "t_mapping(t_enum(StakeType)4002,t_uint256)",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:56"
+          },
+          {
+            "label": "stakingBonus",
+            "offset": 0,
+            "slot": "10",
+            "type": "t_mapping(t_enum(StakeType)4002,t_uint256)",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:58"
+          },
+          {
+            "label": "stakeEndTime",
+            "offset": 0,
+            "slot": "11",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:58"
+          },
+          {
+            "label": "version",
+            "offset": 0,
+            "slot": "12",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:58"
+          },
+          {
+            "label": "annualRewardsBudget",
+            "offset": 0,
+            "slot": "13",
+            "type": "t_uint256",
+            "contract": "HashKeyChainStakingStorage",
+            "src": "contracts/HashKeyChainStakingStorage.sol:58"
+          }
+        ],
+        "types": {
+          "t_address": {
+            "label": "address",
+            "numberOfBytes": "20"
+          },
+          "t_bool": {
+            "label": "bool",
+            "numberOfBytes": "1"
+          },
+          "t_struct(InitializableStorage)73_storage": {
+            "label": "struct Initializable.InitializableStorage",
+            "members": [
+              {
+                "label": "_initialized",
+                "type": "t_uint64",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "_initializing",
+                "type": "t_bool",
+                "offset": 8,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(OwnableStorage)13_storage": {
+            "label": "struct OwnableUpgradeable.OwnableStorage",
+            "members": [
+              {
+                "label": "_owner",
+                "type": "t_address",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(PausableStorage)156_storage": {
+            "label": "struct PausableUpgradeable.PausableStorage",
+            "members": [
+              {
+                "label": "_paused",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_struct(ReentrancyGuardStorage)220_storage": {
+            "label": "struct ReentrancyGuardUpgradeable.ReentrancyGuardStorage",
+            "members": [
+              {
+                "label": "_status",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              }
+            ],
+            "numberOfBytes": "32"
+          },
+          "t_uint256": {
+            "label": "uint256",
+            "numberOfBytes": "32"
+          },
+          "t_uint64": {
+            "label": "uint64",
+            "numberOfBytes": "8"
+          },
+          "t_array(t_struct(LockedStake)3997_storage)dyn_storage": {
+            "label": "struct HashKeyChainStakingStorage.LockedStake[]",
+            "numberOfBytes": "32"
+          },
+          "t_contract(StHSK)4096": {
+            "label": "contract StHSK",
+            "numberOfBytes": "20"
+          },
+          "t_enum(StakeType)4002": {
+            "label": "enum HashKeyChainStakingStorage.StakeType",
+            "members": [
+              "FIXED_30_DAYS",
+              "FIXED_90_DAYS",
+              "FIXED_180_DAYS",
+              "FIXED_365_DAYS"
+            ],
+            "numberOfBytes": "1"
+          },
+          "t_mapping(t_address,t_array(t_struct(LockedStake)3997_storage)dyn_storage)": {
+            "label": "mapping(address => struct HashKeyChainStakingStorage.LockedStake[])",
+            "numberOfBytes": "32"
+          },
+          "t_mapping(t_enum(StakeType)4002,t_uint256)": {
+            "label": "mapping(enum HashKeyChainStakingStorage.StakeType => uint256)",
+            "numberOfBytes": "32"
+          },
+          "t_struct(LockedStake)3997_storage": {
+            "label": "struct HashKeyChainStakingStorage.LockedStake",
+            "members": [
+              {
+                "label": "sharesAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "0"
+              },
+              {
+                "label": "hskAmount",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "1"
+              },
+              {
+                "label": "lockEndTime",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "2"
+              },
+              {
+                "label": "lockDuration",
+                "type": "t_uint256",
+                "offset": 0,
+                "slot": "3"
+              },
+              {
+                "label": "withdrawn",
+                "type": "t_bool",
+                "offset": 0,
+                "slot": "4"
+              }
+            ],
+            "numberOfBytes": "160"
+          }
+        },
+        "namespaces": {
+          "erc7201:openzeppelin.storage.Ownable": [
+            {
+              "contract": "OwnableUpgradeable",
+              "label": "_owner",
+              "type": "t_address",
+              "src": "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol:24",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.ReentrancyGuard": [
+            {
+              "contract": "ReentrancyGuardUpgradeable",
+              "label": "_status",
+              "type": "t_uint256",
+              "src": "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol:43",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Pausable": [
+            {
+              "contract": "PausableUpgradeable",
+              "label": "_paused",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol:21",
+              "offset": 0,
+              "slot": "0"
+            }
+          ],
+          "erc7201:openzeppelin.storage.Initializable": [
+            {
+              "contract": "Initializable",
+              "label": "_initialized",
+              "type": "t_uint64",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:69",
+              "offset": 0,
+              "slot": "0"
+            },
+            {
+              "contract": "Initializable",
+              "label": "_initializing",
+              "type": "t_bool",
+              "src": "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol:73",
+              "offset": 8,
+              "slot": "0"
+            }
+          ]
+        }
+      }
+    }
+  }
+}
