@@ -40,6 +40,12 @@ contract HashKeyChainStaking is
         uint256 _minStakeAmount,
         uint256 _annualBudget
     ) public reinitializer(2) {
+        // Validate inputs before proceeding
+        require(_hskPerBlock > 0, "HSK per block must be positive");
+        require(_startBlock >= block.number, "Start block must be in the future");
+        require(_maxHskPerBlock >= _hskPerBlock, "Max HSK per block must be >= HSK per block");
+        require(_minStakeAmount > 0, "Min stake amount must be positive");
+        
         __HashKeyChainStakingBase_init(
             _hskPerBlock,
             _startBlock,

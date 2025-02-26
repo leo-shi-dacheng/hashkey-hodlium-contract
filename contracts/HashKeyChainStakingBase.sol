@@ -137,9 +137,13 @@ abstract contract HashKeyChainStakingBase is
      */
     function getSharesForHSK(uint256 _hskAmount) public view returns (uint256) {
         uint256 totalShares = stHSK.totalSupply();
+        
+        // Initial 1:1 exchange rate
         if (totalShares == 0 || totalPooledHSK == 0) {
-            return _hskAmount; // Initial 1:1 exchange rate
+            return _hskAmount;
         }
+        
+        // Calculate shares based on the current pool ratio
         return (_hskAmount * totalShares) / totalPooledHSK;
     }
 

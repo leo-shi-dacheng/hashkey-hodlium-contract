@@ -32,7 +32,11 @@ const config: HardhatUserConfig = {
       accounts: [process.env.TEST_STAKE!!],
       chainId: 177,
       gasPrice: "auto",
-    }
+    },
+    hardhat: {
+      chainId: 31337,
+      allowUnlimitedContractSize: true,
+    },
   },
   etherscan: {
     apiKey: {
@@ -56,6 +60,13 @@ const config: HardhatUserConfig = {
         }
       }
     ]
+  },
+  mocha: {
+    timeout: 100000
+  },
+  typechain: {
+    outDir: 'typechain',
+    target: 'ethers-v5'
   }
 };
 

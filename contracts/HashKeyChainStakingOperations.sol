@@ -12,6 +12,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
      * @dev Regular staking (unlocked), directly receives stHSK
      */
     function stake() external payable nonReentrant whenNotPaused {
+        // Strict validation of minimum stake amount
         require(msg.value >= minStakeAmount, "Amount below minimum stake");
         require(block.timestamp < stakeEndTime, "Staking ended");
         
@@ -35,6 +36,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
      * @param _stakeType Stake type (determines lock period and rewards)
      */
     function stakeLocked(StakeType _stakeType) external payable nonReentrant whenNotPaused {
+        // Strict validation of minimum stake amount
         require(msg.value >= minStakeAmount, "Amount below minimum stake");
         require(block.timestamp < stakeEndTime, "Staking ended");
         
