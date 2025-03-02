@@ -22,4 +22,31 @@ contract HashKeyChainStakingProxy is TransparentUpgradeableProxy {
  */
 contract HashKeyChainStakingProxyAdmin is ProxyAdmin {
     constructor() ProxyAdmin(msg.sender) {}
+    
+    /**
+     * @dev Upgrades the proxy to a new implementation.
+     * @param proxy Proxy to upgrade.
+     * @param implementation Address of the new implementation.
+     */
+    function upgradeProxy(
+        ITransparentUpgradeableProxy proxy,
+        address implementation
+    ) external onlyOwner {
+        super.upgradeAndCall(proxy, implementation, bytes(""));
+    }
+    
+    /**
+     * @dev Upgrades the proxy to a new implementation and calls a function on the new implementation.
+     * @param proxy Proxy to upgrade.
+     * @param implementation Address of the new implementation.
+     * @param data Data to send as msg.data in the low level call.
+     * Will be passed to the new implementation as initialization code.
+     */
+    function upgradeProxyAndCall(
+        ITransparentUpgradeableProxy proxy,
+        address implementation,
+        bytes memory data
+    ) external payable onlyOwner {
+        super.upgradeAndCall(proxy, implementation, data);
+    }
 }

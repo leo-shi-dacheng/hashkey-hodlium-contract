@@ -131,7 +131,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         lockedStake.withdrawn = true;
         
         // Update total staked amount
-        totalPooledHSK -= hskToReturn + penalty;
+        totalPooledHSK -= hskToReturn;
         
         // Check if user has enough stHSK
         require(stHSK.balanceOf(msg.sender) >= sharesToBurn, "Insufficient stHSK balance");
@@ -163,9 +163,6 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Update total staked amount
         totalPooledHSK -= hskToReturn;
         
-        // 更新未锁定质押的总量
-        // 注意：这里可能会出现用户提取的是锁定质押的stHSK，但我们无法区分
-        // 为了简化，我们假设用户优先提取未锁定的质押
         if (_sharesAmount <= totalUnlockedShares) {
             totalUnlockedShares -= _sharesAmount;
         } else {
