@@ -56,6 +56,10 @@ contract HashKeyChainStaking is
         if (_annualBudget > 0) {
             annualRewardsBudget = _annualBudget;
         }
+        
+        // 更新版本号
+        version = 2;
+        emit StakingContractUpgraded(version);
     }
 
     /**

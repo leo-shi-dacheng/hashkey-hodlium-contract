@@ -54,4 +54,10 @@ abstract contract HashKeyChainStakingStorage {
     uint256 public version;
 
     uint256 public annualRewardsBudget;
+    
+    // 跟踪每种锁定期类型的质押总量（以shares计算）
+    mapping(StakeType => uint256) public totalSharesByStakeType;
+    
+    // 跟踪未锁定质押的总量（以shares计算）
+    uint256 public totalUnlockedShares;
 }
