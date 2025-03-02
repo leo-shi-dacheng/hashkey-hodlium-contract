@@ -4,17 +4,23 @@ import { HashKeyChainStaking__factory } from "../typechain-types";
 
 dotenv.config();
 
-const PROXY_ADDRESS = "0x31De30BDBB58E890a10CB1C579B16592F7b5c041";
+const PROXY_ADDRESS = "0xDbFF0dCE82E9e9D0BAda19Ef578227c5FB978253";
 
 async function main() {
   const signer = new ethers.Wallet(process.env.TEST_STAKE!, ethers.provider);
   const stakingContract = HashKeyChainStaking__factory.connect(PROXY_ADDRESS, signer);
 
-  // 添加 1000 HSK 作为奖励
-  const rewardAmount = ethers.parseEther("1000");
+  // 添加 100 HSK 作为奖励（从原来的1000 HSK改为100 HSK）
+  const rewardAmount = ethers.parseEther("100");
   
   console.log("Adding rewards...");
-  const tx = await stakingContract.addRewards({ value: rewardAmount });
+  
+  // 使用直接发送交易的方式添加奖励
+  const tx = await signer.sendTransaction({
+    to: PROXY_ADDRESS,
+    value: rewardAmount
+  });
+  
   await tx.wait();
   
   console.log("Added", ethers.formatEther(rewardAmount), "HSK as rewards");

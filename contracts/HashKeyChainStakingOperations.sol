@@ -52,6 +52,9 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         else if (_stakeType == StakeType.FIXED_90_DAYS) lockDuration = 90 days;
         else if (_stakeType == StakeType.FIXED_180_DAYS) lockDuration = 180 days;
         else if (_stakeType == StakeType.FIXED_365_DAYS) lockDuration = 365 days;
+        else if (_stakeType == StakeType.FIXED_1_MINUTE) lockDuration = 1 minutes;
+        else if (_stakeType == StakeType.FIXED_3_MINUTES) lockDuration = 3 minutes;
+        else if (_stakeType == StakeType.FIXED_5_MINUTES) lockDuration = 5 minutes;
         else revert("Invalid stake type");
         
         // Create locked stake record

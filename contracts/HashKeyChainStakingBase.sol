@@ -24,6 +24,19 @@ abstract contract HashKeyChainStakingBase is
     uint256 internal constant BASIS_POINTS = 10000;    // 100% in basis points
     uint256 internal constant MAX_APR = 3000;         // Maximum APR: 30%
 
+    // Staking periods
+    uint256 public constant FIXED_30_DAYS = 30 days;
+    uint256 public constant FIXED_90_DAYS = 90 days;
+    uint256 public constant FIXED_180_DAYS = 180 days;
+    uint256 public constant FIXED_365_DAYS = 365 days;
+    // Test staking periods with short durations
+    uint256 public constant FIXED_1_MINUTE = 1 minutes;
+    uint256 public constant FIXED_3_MINUTES = 3 minutes;
+    uint256 public constant FIXED_5_MINUTES = 5 minutes;
+
+    // Bonus rates for each staking period (in basis points, 100 = 1%)
+    mapping(uint256 => uint256) public stakingBonusRate;
+
     function __HashKeyChainStakingBase_init(
         uint256 _hskPerBlock,
         uint256 _startBlock,
@@ -61,10 +74,14 @@ abstract contract HashKeyChainStakingBase is
         earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 2000;  // 20%
         
         // Set bonus for different staking periods
-        stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
-        stakingBonus[StakeType.FIXED_90_DAYS] = 80;     // 0.8%
-        stakingBonus[StakeType.FIXED_180_DAYS] = 200;   // 2.0%
-        stakingBonus[StakeType.FIXED_365_DAYS] = 400;   // 4.0%
+        stakingBonusRate[FIXED_30_DAYS] = 0;      // 0%
+        stakingBonusRate[FIXED_90_DAYS] = 800;     // 8%
+        stakingBonusRate[FIXED_180_DAYS] = 2000;   // 20%
+        stakingBonusRate[FIXED_365_DAYS] = 4000;   // 40%
+        // Test staking periods with higher bonus rates
+        stakingBonusRate[FIXED_1_MINUTE] = 5000; // 50%
+        stakingBonusRate[FIXED_3_MINUTES] = 7500; // 75%
+        stakingBonusRate[FIXED_5_MINUTES] = 10000; // 100%
         
         emit StakingContractUpgraded(version);
         emit HskPerBlockUpdated(0, _hskPerBlock);
@@ -188,15 +205,34 @@ abstract contract HashKeyChainStakingBase is
         }
         
         // Add staking duration bonus
-        uint256 totalApr = baseApr + stakingBonus[_stakeType];
+        uint256 lockPeriod;
+        if (_stakeType == StakeType.FIXED_30_DAYS) {
+            lockPeriod = FIXED_30_DAYS;
+        } else if (_stakeType == StakeType.FIXED_90_DAYS) {
+            lockPeriod = FIXED_90_DAYS;
+        } else if (_stakeType == StakeType.FIXED_180_DAYS) {
+            lockPeriod = FIXED_180_DAYS;
+        } else if (_stakeType == StakeType.FIXED_365_DAYS) {
+            lockPeriod = FIXED_365_DAYS;
+        } else if (_stakeType == StakeType.FIXED_1_MINUTE) {
+            lockPeriod = FIXED_1_MINUTE;
+        } else if (_stakeType == StakeType.FIXED_3_MINUTES) {
+            lockPeriod = FIXED_3_MINUTES;
+        } else if (_stakeType == StakeType.FIXED_5_MINUTES) {
+            lockPeriod = FIXED_5_MINUTES;
+        } else {
+            lockPeriod = 0;
+        }
+        
+        uint256 totalApr = baseApr + stakingBonusRate[lockPeriod];
         
         // Get maximum APR for corresponding stake type
         uint256 maxTypeApr;
-        if (_stakeType == StakeType.FIXED_30_DAYS) {
+        if (lockPeriod == FIXED_30_DAYS) {
             maxTypeApr = 120; // 1.2%
-        } else if (_stakeType == StakeType.FIXED_90_DAYS) {
+        } else if (lockPeriod == FIXED_90_DAYS) {
             maxTypeApr = 350; // 3.5%
-        } else if (_stakeType == StakeType.FIXED_180_DAYS) {
+        } else if (lockPeriod == FIXED_180_DAYS) {
             maxTypeApr = 650; // 6.5%
         } else {
             maxTypeApr = 1200; // 12.0%
@@ -206,5 +242,13 @@ abstract contract HashKeyChainStakingBase is
         return totalApr > maxTypeApr ? maxTypeApr : totalApr;
     }
 
-    
+    function _isValidLockPeriod(uint256 lockPeriod) internal pure returns (bool) {
+        return lockPeriod == FIXED_30_DAYS ||
+               lockPeriod == FIXED_90_DAYS ||
+               lockPeriod == FIXED_180_DAYS ||
+               lockPeriod == FIXED_365_DAYS ||
+               lockPeriod == FIXED_1_MINUTE ||
+               lockPeriod == FIXED_3_MINUTES ||
+               lockPeriod == FIXED_5_MINUTES;
+    }
 }

@@ -18,7 +18,7 @@ abstract contract HashKeyChainStakingStorage {
     }
 
     // Stake types
-    enum StakeType { FIXED_30_DAYS, FIXED_90_DAYS, FIXED_180_DAYS, FIXED_365_DAYS }
+    enum StakeType { FIXED_30_DAYS, FIXED_90_DAYS, FIXED_180_DAYS, FIXED_365_DAYS, FIXED_1_MINUTE, FIXED_3_MINUTES, FIXED_5_MINUTES }
 
     // stHSK token
     StHSK public stHSK;
