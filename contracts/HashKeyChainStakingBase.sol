@@ -214,12 +214,13 @@ abstract contract HashKeyChainStakingBase is
      */
     function safeHskTransfer(address payable _to, uint256 _amount) internal returns (bool) {
         uint256 availableBalance = address(this).balance - totalPooledHSK;
-        uint256 amountToSend = _amount > availableBalance ? availableBalance : _amount;
         
-        if (amountToSend > 0) {
-            (bool success, ) = _to.call{value: amountToSend}("");
-            return success;
-        }
+        // 确保合约有足够的余额
+        require(availableBalance >= _amount, "Insufficient contract balance");
+        
+        // 发送资金
+        (bool success, ) = _to.call{value: _amount}("");
+        require(success, "HSK transfer failed");
         return true;
     }
 

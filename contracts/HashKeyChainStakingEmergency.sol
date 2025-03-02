@@ -13,6 +13,9 @@ abstract contract HashKeyChainStakingEmergency is HashKeyChainStakingAdmin {
      * @dev Emergency withdrawal (without rewards)
      */
     function emergencyWithdraw() external nonReentrant {
+        // Update reward pool before withdrawal
+        updateRewardPool();
+        
         uint256 shareBalance = stHSK.balanceOf(msg.sender);
         require(shareBalance > 0, "Nothing to withdraw");
         
@@ -45,6 +48,9 @@ abstract contract HashKeyChainStakingEmergency is HashKeyChainStakingAdmin {
      * @param _amount Withdrawal amount
      */
     function emergencyWithdrawHSK(uint256 _amount) external onlyOwner {
+        // Update reward pool before withdrawal
+        updateRewardPool();
+        
         uint256 availableBalance = address(this).balance - totalPooledHSK;
         require(_amount <= availableBalance, "Cannot withdraw staked HSK");
         
