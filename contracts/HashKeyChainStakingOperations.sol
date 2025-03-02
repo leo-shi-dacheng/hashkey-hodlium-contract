@@ -22,6 +22,18 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Calculate shares to mint
         uint256 sharesAmount = getSharesForHSK(msg.value);
         
+        // 验证股份数量不为零
+        require(sharesAmount > 0, "Shares amount cannot be zero");
+        
+        // 处理第一次质押的最小流动性
+        if (!initialLiquidityMinted) {
+            require(sharesAmount >= MINIMUM_LIQUIDITY, "Initial stake too small");
+            initialLiquidityMinted = true;
+            // 将最小流动性发送到零地址
+            stHSK.mint(address(0), MINIMUM_LIQUIDITY);
+            sharesAmount -= MINIMUM_LIQUIDITY;
+        }
+        
         // Update total staked amount
         totalPooledHSK += msg.value;
         
@@ -48,6 +60,18 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         
         // Calculate shares to mint
         uint256 sharesAmount = getSharesForHSK(msg.value);
+        
+        // 验证股份数量不为零
+        require(sharesAmount > 0, "Shares amount cannot be zero");
+        
+        // 处理第一次质押的最小流动性
+        if (!initialLiquidityMinted) {
+            require(sharesAmount >= MINIMUM_LIQUIDITY, "Initial stake too small");
+            initialLiquidityMinted = true;
+            // 将最小流动性发送到零地址
+            stHSK.mint(address(0), MINIMUM_LIQUIDITY);
+            sharesAmount -= MINIMUM_LIQUIDITY;
+        }
         
         // Determine lock period
         uint256 lockDuration;

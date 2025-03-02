@@ -32,25 +32,29 @@ contract HashKeyChainStaking is
     * @param _maxHskPerBlock Maximum reward per block
     * @param _minStakeAmount Minimum staking amount
     * @param _annualBudget Annual budget (optional, if 0 it will be calculated based on hskPerBlock)
+    * @param _blockTime Block time in seconds
     */
     function initialize(
         uint256 _hskPerBlock,
         uint256 _startBlock,
         uint256 _maxHskPerBlock,
         uint256 _minStakeAmount,
-        uint256 _annualBudget
+        uint256 _annualBudget,
+        uint256 _blockTime
     ) public reinitializer(2) {
         // Validate inputs before proceeding
         require(_hskPerBlock > 0, "HSK per block must be positive");
         require(_startBlock >= block.number, "Start block must be in the future");
         require(_maxHskPerBlock >= _hskPerBlock, "Max HSK per block must be >= HSK per block");
         require(_minStakeAmount > 0, "Min stake amount must be positive");
+        require(_blockTime > 0, "Block time must be positive");
         
         __HashKeyChainStakingBase_init(
             _hskPerBlock,
             _startBlock,
             _maxHskPerBlock,
-            _minStakeAmount
+            _minStakeAmount,
+            _blockTime
         );
         
         if (_annualBudget > 0) {
@@ -217,8 +221,25 @@ contract HashKeyChainStaking is
         uint256 yearlyRewards = annualRewardsBudget;
         
         if (totalPooledHSK == 0) {
-            baseApr = MAX_APR > 1200 ? 1200 : MAX_APR; // MAX_APR_365_DAYS = 1200
-            return (baseApr, 120, 1200); // Return default values
+            // Use a reasonable initial stake amount for calculation
+            uint256 initialStake = minStakeAmount > 0 ? minStakeAmount : 100 ether;
+            // Calculate APR based on this initial stake
+            baseApr = (yearlyRewards * BASIS_POINTS) / initialStake;
+            
+            // Cap at MAX_APR_365_DAYS
+            if (baseApr > MAX_APR) {
+                baseApr = MAX_APR > 1200 ? 1200 : MAX_APR; // MAX_APR_365_DAYS = 1200
+            }
+            
+            // Minimum APR for 30-day lock
+            minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 120 ? 
+                120 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
+            
+            // Maximum APR for 365-day lock
+            maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 1200 ? 
+                1200 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
+            
+            return (baseApr, minApr, maxApr);
         }
         
         uint256 newTotal = totalPooledHSK + _stakeAmount;
@@ -231,7 +252,7 @@ contract HashKeyChainStaking is
         // Maximum APR for 365-day lock
         maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 1200 ? 
             1200 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
-            
+        
         return (baseApr, minApr, maxApr);
     }
 

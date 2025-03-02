@@ -20,6 +20,20 @@ abstract contract HashKeyChainStakingStorage {
     // Stake types
     enum StakeType { FIXED_30_DAYS, FIXED_90_DAYS, FIXED_180_DAYS, FIXED_365_DAYS }
 
+    // Constants
+    uint256 internal constant PRECISION_FACTOR = 1e18;
+    uint256 internal constant MAX_PENALTY = 5000;      // Maximum penalty: 50%
+    uint256 internal constant BASIS_POINTS = 10000;    // 100% in basis points
+    uint256 internal constant MAX_APR = 3000;         // Maximum APR: 30%
+    uint256 internal constant SECONDS_PER_YEAR = 365 days;
+    uint256 internal constant MINIMUM_LIQUIDITY = 1000;  // 最小流动性，防止第一个质押者操纵
+
+    // 是否已经初始化最小流动性
+    bool public initialLiquidityMinted;
+
+    // Configurable block time
+    uint256 public blockTime;  // Block time in seconds
+
     // stHSK token
     StHSK public stHSK;
     

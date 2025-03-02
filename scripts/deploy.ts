@@ -32,12 +32,12 @@ async function main() {
   // 准备初始化数据
   console.log("Preparing initialization data...");
   const initData = HashKeyChainStaking.interface.encodeFunctionData("initialize", [
-    // 这里填入initialize函数的参数
-    // 例如: 
-    // deployer.address, // owner
-    // ethers.parseEther("0.1"), // minStakeAmount
-    // 3600 * 24 * 365, // 一年的秒数
-    // ethers.parseEther("1000") // annualRewardsBudget
+    ethers.parseEther("0.1"),    // hskPerBlock
+    await ethers.provider.getBlockNumber() + 100, // startBlock (当前区块+100)
+    ethers.parseEther("1"),      // maxHskPerBlock
+    ethers.parseEther("100"),    // minStakeAmount
+    ethers.parseEther("1000"),   // annualBudget
+    2                            // blockTime (2 seconds for HashKey Chain)
   ]);
 
   // 部署代理合约

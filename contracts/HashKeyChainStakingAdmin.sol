@@ -119,4 +119,21 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
         
         emit AnnualBudgetUpdated(oldValue, _annualBudget);
     }
+
+    /**
+     * @dev Update block time
+     * @param _newBlockTime New block time in seconds
+     */
+    function updateBlockTime(uint256 _newBlockTime) external onlyOwner {
+        require(_newBlockTime > 0, "Block time must be positive");
+        
+        uint256 oldBlockTime = blockTime;
+        blockTime = _newBlockTime;
+        
+        // Recalculate annual rewards budget
+        uint256 blocksPerYear = SECONDS_PER_YEAR / blockTime;
+        annualRewardsBudget = hskPerBlock * blocksPerYear;
+        
+        emit BlockTimeUpdated(oldBlockTime, _newBlockTime);
+    }
 }
