@@ -25,6 +25,9 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Update total staked amount
         totalPooledHSK += msg.value;
         
+        // 更新未锁定质押的总量
+        totalUnlockedShares += sharesAmount;
+        
         // Mint stHSK tokens
         stHSK.mint(msg.sender, sharesAmount);
         
@@ -66,6 +69,9 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Update total staked amount
         totalPooledHSK += msg.value;
         
+        // 更新该锁定期类型的质押总量
+        totalSharesByStakeType[_stakeType] += sharesAmount;
+        
         // Mint stHSK tokens
         stHSK.mint(msg.sender, sharesAmount);
         
@@ -95,14 +101,17 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         uint256 sharesToBurn = lockedStake.sharesAmount;
         uint256 hskToReturn = getHSKForShares(sharesToBurn);
         
+        // 确定质押类型并更新该类型的质押总量
+        StakeType stakeType;
+        if (lockedStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
+        else if (lockedStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
+        else if (lockedStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
+        else stakeType = StakeType.FIXED_365_DAYS;
+        
+        // 更新该锁定期类型的质押总量
+        totalSharesByStakeType[stakeType] -= sharesToBurn;
+        
         if (isEarlyWithdrawal) {
-            // Determine stake type
-            StakeType stakeType;
-            if (lockedStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
-            else if (lockedStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
-            else if (lockedStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
-            else stakeType = StakeType.FIXED_365_DAYS;
-            
             // Calculate elapsed lock period ratio
             uint256 elapsedTime = block.timestamp - (lockedStake.lockEndTime - lockedStake.lockDuration);
             uint256 completionRatio = (elapsedTime * BASIS_POINTS) / lockedStake.lockDuration;
@@ -153,6 +162,18 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         
         // Update total staked amount
         totalPooledHSK -= hskToReturn;
+        
+        // 更新未锁定质押的总量
+        // 注意：这里可能会出现用户提取的是锁定质押的stHSK，但我们无法区分
+        // 为了简化，我们假设用户优先提取未锁定的质押
+        if (_sharesAmount <= totalUnlockedShares) {
+            totalUnlockedShares -= _sharesAmount;
+        } else {
+            // 如果提取的数量超过了未锁定的总量，说明用户提取了一部分锁定的质押
+            // 这种情况在实际中不应该发生，因为锁定的质押应该通过unstakeLocked提取
+            // 这里只是为了防止totalUnlockedShares变为负数
+            totalUnlockedShares = 0;
+        }
         
         // Burn stHSK tokens
         stHSK.burn(msg.sender, _sharesAmount);

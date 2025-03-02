@@ -39,14 +39,25 @@ abstract contract HashKeyChainStakingBase is
         require(_maxHskPerBlock >= _hskPerBlock, "Max HSK per block must be >= HSK per block");
         require(_minStakeAmount >= 100 ether, "Min stake amount must be >= 100 HSK");
         
-        stHSK = new StHSK();
+        // 只有在StHSK合约地址为0时才部署新的StHSK合约
+        if (address(stHSK) == address(0)) {
+            stHSK = new StHSK();
+            // 只有在初始化时才将totalPooledHSK设置为0
+            totalPooledHSK = 0;
+            
+            // 初始化新添加的跟踪变量
+            totalUnlockedShares = 0;
+            totalSharesByStakeType[StakeType.FIXED_30_DAYS] = 0;
+            totalSharesByStakeType[StakeType.FIXED_90_DAYS] = 0;
+            totalSharesByStakeType[StakeType.FIXED_180_DAYS] = 0;
+            totalSharesByStakeType[StakeType.FIXED_365_DAYS] = 0;
+        }
         
         hskPerBlock = _hskPerBlock;
         startBlock = _startBlock;
         lastRewardBlock = startBlock;
         maxHskPerBlock = _maxHskPerBlock;
         minStakeAmount = _minStakeAmount;
-        totalPooledHSK = 0;
         stakeEndTime = type(uint256).max;  // Default set to maximum value
         version = 1;
         
@@ -95,23 +106,71 @@ abstract contract HashKeyChainStakingBase is
             hskReward = (totalPooledHSK * MAX_APR * multiplier) / (BASIS_POINTS * (365 days / 2));
         }
         
+        // 计算额外的锁定期奖励
+        uint256 additionalBonusRewards = 0;
+        
+        // 获取总shares数量
+        uint256 totalShares = stHSK.totalSupply();
+        
+        if (totalShares > 0) {
+            // 计算每种锁定期类型的额外奖励
+            uint256 bonusReward30Days = 0;
+            uint256 bonusReward90Days = 0;
+            uint256 bonusReward180Days = 0;
+            uint256 bonusReward365Days = 0;
+            
+            // 只有当该类型有质押时才计算奖励
+            if (totalSharesByStakeType[StakeType.FIXED_30_DAYS] > 0) {
+                // 计算该类型质押占总质押的比例
+                uint256 shareRatio30Days = (totalSharesByStakeType[StakeType.FIXED_30_DAYS] * PRECISION_FACTOR) / totalShares;
+                // 计算该类型的基础奖励
+                uint256 baseReward30Days = (hskReward * shareRatio30Days) / PRECISION_FACTOR;
+                // 计算该类型的额外奖励
+                bonusReward30Days = (baseReward30Days * stakingBonus[StakeType.FIXED_30_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_90_DAYS] > 0) {
+                uint256 shareRatio90Days = (totalSharesByStakeType[StakeType.FIXED_90_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward90Days = (hskReward * shareRatio90Days) / PRECISION_FACTOR;
+                bonusReward90Days = (baseReward90Days * stakingBonus[StakeType.FIXED_90_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_180_DAYS] > 0) {
+                uint256 shareRatio180Days = (totalSharesByStakeType[StakeType.FIXED_180_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward180Days = (hskReward * shareRatio180Days) / PRECISION_FACTOR;
+                bonusReward180Days = (baseReward180Days * stakingBonus[StakeType.FIXED_180_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_365_DAYS] > 0) {
+                uint256 shareRatio365Days = (totalSharesByStakeType[StakeType.FIXED_365_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward365Days = (hskReward * shareRatio365Days) / PRECISION_FACTOR;
+                bonusReward365Days = (baseReward365Days * stakingBonus[StakeType.FIXED_365_DAYS]) / BASIS_POINTS;
+            }
+            
+            // 计算总的额外奖励
+            additionalBonusRewards = bonusReward30Days + bonusReward90Days + bonusReward180Days + bonusReward365Days;
+        }
+        
+        // 总奖励 = 基础奖励 + 额外的锁定期奖励
+        uint256 totalReward = hskReward + additionalBonusRewards;
+        
         // Check if contract has enough HSK
-        if (reservedRewards >= hskReward) {
-            totalPooledHSK += hskReward;
-            reservedRewards -= hskReward;
+        if (reservedRewards >= totalReward) {
+            totalPooledHSK += totalReward;
+            reservedRewards -= totalReward;
             
             // Update exchange rate
             emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
         } else {
             if (reservedRewards > 0) {
                 totalPooledHSK += reservedRewards;
-                hskReward = reservedRewards;
+                totalReward = reservedRewards;
                 reservedRewards = 0;
                 
                 // Update exchange rate
                 emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
             }
-            emit InsufficientRewards(hskReward, reservedRewards);
+            emit InsufficientRewards(totalReward, reservedRewards);
         }
         
         lastRewardBlock = block.number;
