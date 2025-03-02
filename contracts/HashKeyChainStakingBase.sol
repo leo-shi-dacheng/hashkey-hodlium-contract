@@ -18,17 +18,12 @@ abstract contract HashKeyChainStakingBase is
     OwnableUpgradeable,
     HashKeyChainStakingEvents
 {
-    // Constants
-    uint256 internal constant PRECISION_FACTOR = 1e18;
-    uint256 internal constant MAX_PENALTY = 5000;      // Maximum penalty: 50%
-    uint256 internal constant BASIS_POINTS = 10000;    // 100% in basis points
-    uint256 internal constant MAX_APR = 3000;         // Maximum APR: 30%
-
     function __HashKeyChainStakingBase_init(
         uint256 _hskPerBlock,
         uint256 _startBlock,
         uint256 _maxHskPerBlock,
-        uint256 _minStakeAmount
+        uint256 _minStakeAmount,
+        uint256 _blockTime
     ) internal onlyInitializing {
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -38,12 +33,16 @@ abstract contract HashKeyChainStakingBase is
         require(_startBlock >= block.number, "Start block must be in the future");
         require(_maxHskPerBlock >= _hskPerBlock, "Max HSK per block must be >= HSK per block");
         require(_minStakeAmount >= 100 ether, "Min stake amount must be >= 100 HSK");
+        require(_blockTime > 0, "Block time must be positive");
+        
+        blockTime = _blockTime;
         
         // 只有在StHSK合约地址为0时才部署新的StHSK合约
         if (address(stHSK) == address(0)) {
             stHSK = new StHSK();
             // 只有在初始化时才将totalPooledHSK设置为0
             totalPooledHSK = 0;
+            initialLiquidityMinted = false;  // 初始化最小流动性标志
             
             // 初始化新添加的跟踪变量
             totalUnlockedShares = 0;
@@ -61,8 +60,10 @@ abstract contract HashKeyChainStakingBase is
         stakeEndTime = type(uint256).max;  // Default set to maximum value
         version = 1;
         
-        // Calculate and set default annual budget
-        uint256 blocksPerYear = (365 * 24 * 3600) / 2; // Blocks per year (assuming 2 seconds per block)
+        // Calculate and set default annual budget using configurable block time
+        // SECONDS_PER_YEAR is 365 days (31,536,000 seconds)
+        // Explicitly calculate blocks per year based on the configured block time
+        uint256 blocksPerYear = SECONDS_PER_YEAR / blockTime;  // 31,536,000 / blockTime
         annualRewardsBudget = _hskPerBlock * blocksPerYear;
         
         // Set early withdrawal penalties
@@ -99,11 +100,14 @@ abstract contract HashKeyChainStakingBase is
         uint256 multiplier = block.number - lastRewardBlock;
         uint256 hskReward = multiplier * hskPerBlock;
         
-        // Calculate and limit APR
-        uint256 annualReward = hskPerBlock * (365 days / 2); // 2 seconds per block
+        // Calculate and limit APR using configurable block time
+        // SECONDS_PER_YEAR is 365 days (31,536,000 seconds)
+        // Explicitly calculate blocks per year based on the configured block time
+        uint256 blocksPerYear = SECONDS_PER_YEAR / blockTime;  // 31,536,000 / blockTime
+        uint256 annualReward = hskPerBlock * blocksPerYear;
         uint256 currentAPR = (annualReward * BASIS_POINTS) / totalPooledHSK;
         if (currentAPR > MAX_APR) {
-            hskReward = (totalPooledHSK * MAX_APR * multiplier) / (BASIS_POINTS * (365 days / 2));
+            hskReward = (totalPooledHSK * MAX_APR * multiplier) / (BASIS_POINTS * blocksPerYear);
         }
         
         // 计算额外的锁定期奖励
@@ -236,9 +240,19 @@ abstract contract HashKeyChainStakingBase is
         
         uint256 baseApr;
         if (totalPooledHSK == 0) {
-            baseApr = MAX_APR;
+            // Use a reasonable initial stake amount for calculation
+            uint256 initialStake = minStakeAmount > 0 ? minStakeAmount : 100 ether;
+            // Calculate APR based on this initial stake
+            baseApr = (yearlyRewards * BASIS_POINTS) / initialStake;
+            
+            // Cap at MAX_APR
+            if (baseApr > MAX_APR) {
+                baseApr = MAX_APR;
+            }
         } else {
             uint256 newTotal = totalPooledHSK + _stakeAmount;
+            
+            // Calculate APR based on annual rewards distributed over time
             baseApr = (yearlyRewards * BASIS_POINTS) / newTotal;
             
             // Ensure not exceeding maximum APR
