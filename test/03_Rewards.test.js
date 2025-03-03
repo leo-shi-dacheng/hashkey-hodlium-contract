@@ -21,7 +21,8 @@ describe("HashKeyChain Staking - Rewards", function () {
       (await ethers.provider.getBlockNumber()) + 10,
       ethers.parseEther("0.1"),
       minStakeAmount,
-      0
+      ethers.parseEther("1000"),
+      2
     ]);
     
     await staking.waitForDeployment();

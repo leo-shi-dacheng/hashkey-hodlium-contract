@@ -19,7 +19,8 @@ describe("HashKeyChain Staking - Security Penetration Tests", function () {
       (await ethers.provider.getBlockNumber()) + 10,
       ethers.parseEther("0.1"),
       minStakeAmount,
-      0
+      ethers.parseEther("1000"),
+      2
     ]);
     
     await staking.waitForDeployment();
@@ -102,16 +103,16 @@ describe("HashKeyChain Staking - Security Penetration Tests", function () {
     });
     
     it("Should prevent initialization after deployment", async function() {
-      // Try to initialize again
       await expect(
         staking.initialize(
-          ethers.parseEther("0.01"),
-          1,
-          ethers.parseEther("0.1"),
-          minStakeAmount,
-          0
+          ethers.parseEther("0.01"), // hskPerBlock
+          await ethers.provider.getBlockNumber() + 10, // startBlock
+          ethers.parseEther("0.1"),  // maxHskPerBlock
+          ethers.parseEther("100"),  // minStakeAmount
+          ethers.parseEther("1000"), // annualBudget
+          2 // blockTime
         )
-      ).to.be.reverted;
+      ).to.be.reverted;  // 只检查是否被回滚，不检查具体错误消息
     });
   });
   

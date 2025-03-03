@@ -23,7 +23,8 @@ describe("HashKeyChain Staking - Locked Staking", function () {
       (await ethers.provider.getBlockNumber()) + 10,
       ethers.parseEther("0.1"),
       minStakeAmount,
-      0
+      ethers.parseEther("1000"),
+      2
     ]);
     
     await staking.waitForDeployment();
@@ -45,20 +46,16 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     
     await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
     
-    expect(await stHSK.balanceOf(addr1.address)).to.equal(stakeAmount);
-    expect(await staking.getUserLockedStakeCount(addr1.address)).to.equal(1);
+    expect(await staking.totalPooledHSK()).to.equal(stakeAmount);
+    // 考虑最小流动性的影响
+    const expectedStHSK = ethers.toBigInt(stakeAmount) - 1000n;  // 减去最小流动性 1000
+    expect(await stHSK.balanceOf(addr1.address)).to.equal(expectedStHSK);
     
-    // Get lock information
-    const stakeInfo = await staking.getLockedStakeInfo(addr1.address, 0);
-    
-    // Print all returned values for analysis
-    console.log("Stake Info:", stakeInfo);
-    
-    // Update correct assertions based on the structure
-    // First value may be the amount, but we're not sure about the order of other elements
-    expect(stakeInfo[0]).to.equal(stakeAmount);
-    
-    // Don't test exact lock time for now, just confirm staking was successful
+    // 获取质押信息
+    const stakeId = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    const lockedStake = await staking.getLockedStakeInfo(addr1.address, stakeId);
+    expect(lockedStake.hskAmount).to.equal(stakeAmount);
+    expect(lockedStake.sharesAmount).to.equal(expectedStHSK);
   });
   
   it("Should not allow early withdrawal without penalty", async function() {

@@ -29,8 +29,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         if (!initialLiquidityMinted) {
             require(sharesAmount >= MINIMUM_LIQUIDITY, "Initial stake too small");
             initialLiquidityMinted = true;
-            // 将最小流动性发送到零地址
-            stHSK.mint(address(0), MINIMUM_LIQUIDITY);
+            // 将最小流动性发送到死地址
+            stHSK.mint(0x000000000000000000000000000000000000dEaD, MINIMUM_LIQUIDITY);
             sharesAmount -= MINIMUM_LIQUIDITY;
         }
         
@@ -68,8 +68,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         if (!initialLiquidityMinted) {
             require(sharesAmount >= MINIMUM_LIQUIDITY, "Initial stake too small");
             initialLiquidityMinted = true;
-            // 将最小流动性发送到零地址
-            stHSK.mint(address(0), MINIMUM_LIQUIDITY);
+            // 将最小流动性发送到死地址
+            stHSK.mint(0x000000000000000000000000000000000000dEaD, MINIMUM_LIQUIDITY);
             sharesAmount -= MINIMUM_LIQUIDITY;
         }
         

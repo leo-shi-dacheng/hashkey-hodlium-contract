@@ -22,7 +22,8 @@ describe("HashKeyChain Staking - Initialization & Basic", function () {
       (await ethers.provider.getBlockNumber()) + 10, // startBlock
       ethers.parseEther("0.1"),  // maxHskPerBlock
       minStakeAmount,
-      0 // Annual budget
+      ethers.parseEther("1000"), // annualBudget
+      2 // blockTime
     ]);
     
     await staking.waitForDeployment();
@@ -67,7 +68,8 @@ describe("HashKeyChain Staking - Initialization & Basic", function () {
       await tx.wait();
       
       expect(await staking.totalPooledHSK()).to.equal(minStakeAmount);
-      expect(await stHSK.balanceOf(addr1.address)).to.equal(minStakeAmount);
+      const expectedStHSK = ethers.toBigInt(minStakeAmount) - 1000n;  // 减去最小流动性 1000
+      expect(await stHSK.balanceOf(addr1.address)).to.equal(expectedStHSK);
     });
   });
 }); 

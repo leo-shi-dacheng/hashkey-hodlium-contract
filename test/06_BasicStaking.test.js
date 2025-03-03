@@ -17,10 +17,11 @@ describe("Basic Staking Tests", function () {
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
     staking = await upgrades.deployProxy(HashKeyChainStaking, [
       ethers.parseEther("0.01"), // hskPerBlock
-      startBlock,
+      (await ethers.provider.getBlockNumber()) + 10, // startBlock
       ethers.parseEther("0.1"),  // maxHskPerBlock
       minStakeAmount,
-      0 // Annual budget
+      ethers.parseEther("1000"), // annualBudget
+      2 // blockTime
     ]);
     
     await staking.waitForDeployment();
@@ -53,16 +54,13 @@ describe("Basic Staking Tests", function () {
   });
   
   it("Should accept valid stake", async function () {
-    // Use low-level call directly
-    const stakeTx = await addr1.sendTransaction({
-      to: await staking.getAddress(),
-      value: minStakeAmount,
-      data: staking.interface.encodeFunctionData("stake", [])
+    const tx = await staking.connect(addr1).stake({
+      value: minStakeAmount
     });
-    await stakeTx.wait();
+    await tx.wait();
     
-    // Verify results
     expect(await staking.totalPooledHSK()).to.equal(minStakeAmount);
-    expect(await stHSK.balanceOf(addr1.address)).to.equal(minStakeAmount);
+    const expectedStHSK = ethers.toBigInt(minStakeAmount) - 1000n;  // 减去最小流动性 1000
+    expect(await stHSK.balanceOf(addr1.address)).to.equal(expectedStHSK);
   });
 }); 
