@@ -67,10 +67,10 @@ abstract contract HashKeyChainStakingBase is
         annualRewardsBudget = _hskPerBlock * blocksPerYear;
         
         // Set early withdrawal penalties
-        earlyWithdrawalPenalty[StakeType.FIXED_30_DAYS] = 500;    // 5%
-        earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 1000;   // 10%
-        earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 1500;  // 15%
-        earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 2000;  // 20%
+        earlyWithdrawalPenalty[StakeType.FIXED_30_DAYS] = 10;     // 0.1%
+        earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 10;     // 0.1%
+        earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 10;    // 0.1%
+        earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 10;    // 0.1%
         
         // Set bonus for different staking periods
         stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
@@ -205,21 +205,7 @@ abstract contract HashKeyChainStakingBase is
         if (totalShares == 0 || totalPooledHSK == 0) {
             return _hskAmount;
         }
-        
-        // 计算实际的总份额（减去最小流动性）
-        uint256 effectiveTotalShares = totalShares;
-        if (initialLiquidityMinted) {
-            effectiveTotalShares = totalShares - MINIMUM_LIQUIDITY;
-        }
-        
-        // 计算实际的总质押HSK（减去最小流动性对应的HSK）
-        uint256 effectiveTotalPooledHSK = totalPooledHSK;
-        if (initialLiquidityMinted) {
-            effectiveTotalPooledHSK = totalPooledHSK - MINIMUM_LIQUIDITY;
-        }
-        
-        // Calculate shares based on the current pool ratio
-        return (_hskAmount * effectiveTotalShares) / effectiveTotalPooledHSK;
+        return (_hskAmount * totalShares) / totalPooledHSK;
     }
 
     /**

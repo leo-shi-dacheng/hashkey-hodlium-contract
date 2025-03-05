@@ -122,8 +122,8 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     console.log("Expected return:", expectedReturn.toString());
     console.log("Actual return:", actualReturn.toString());
     
-    // Use a wider error margin, as other factors may affect the actual returned amount
-    expect(actualReturn).to.be.closeTo(expectedReturn, ethers.parseEther("0.1"));
+    // Use a smaller error margin since the penalty is now much smaller (0.1%)
+    expect(actualReturn).to.be.closeTo(expectedReturn, ethers.parseEther("0.01"));
   });
 
   // Test 2: Normal unstaking after lock period
