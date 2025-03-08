@@ -205,7 +205,21 @@ abstract contract HashKeyChainStakingBase is
         if (totalShares == 0 || totalPooledHSK == 0) {
             return _hskAmount;
         }
-        return (_hskAmount * totalShares) / totalPooledHSK;
+         
+        // 计算实际的总份额（减去最小流动性）
+        uint256 effectiveTotalShares = totalShares;
+        if (initialLiquidityMinted) {
+            effectiveTotalShares = totalShares - MINIMUM_LIQUIDITY;
+        }
+        
+        // 计算实际的总质押HSK（减去最小流动性对应的HSK）
+        uint256 effectiveTotalPooledHSK = totalPooledHSK;
+        if (initialLiquidityMinted) {
+            effectiveTotalPooledHSK = totalPooledHSK - MINIMUM_LIQUIDITY;
+        }
+        
+        // Calculate shares based on the current pool ratio
+        return (_hskAmount * effectiveTotalShares) / effectiveTotalPooledHSK;
     }
 
     /**
@@ -277,6 +291,4 @@ abstract contract HashKeyChainStakingBase is
         // Ensure not exceeding this type's maximum APR
         return totalApr > maxTypeApr ? maxTypeApr : totalApr;
     }
-
-    
 }
