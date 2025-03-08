@@ -151,4 +151,121 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     // Verify the returned amount is as expected (should be at least the original stake amount)
     expect(actualReturn).to.be.closeTo(stakeAmount, ethers.parseEther("0.01"));
   });
+
+  // npx hardhat test test/02_LockedStaking.test.js --grep "multiple stakes"
+  it("Should handle multiple stakes and non-sequential early withdrawals correctly", async function() {
+    console.log("\n=== Starting Multiple Stakes Test ===");
+    
+    // 准备三笔不同金额的质押
+    const stake1Amount = ethers.parseEther("100");
+    const stake2Amount = ethers.parseEther("200");
+    const stake3Amount = ethers.parseEther("300");
+    
+    console.log("\n--- Making Three Stakes ---");
+    
+    // 第一笔质押：30天锁定期
+    console.log("\nMaking first stake:");
+    console.log(`Amount: ${ethers.formatEther(stake1Amount)} HSK`);
+    console.log("Lock period: 30 days");
+    let tx1 = await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stake1Amount });
+    let receipt1 = await tx1.wait();
+    const stake1Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    console.log(`Stake 1 ID: ${stake1Id}`);
+    
+    // 第二笔质押：90天锁定期
+    console.log("\nMaking second stake:");
+    console.log(`Amount: ${ethers.formatEther(stake2Amount)} HSK`);
+    console.log("Lock period: 90 days");
+    let tx2 = await staking.connect(addr1).stakeLocked(FIXED_90_DAYS, { value: stake2Amount });
+    let receipt2 = await tx2.wait();
+    const stake2Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    console.log(`Stake 2 ID: ${stake2Id}`);
+    
+    // 第三笔质押：180天锁定期
+    console.log("\nMaking third stake:");
+    console.log(`Amount: ${ethers.formatEther(stake3Amount)} HSK`);
+    console.log("Lock period: 180 days");
+    let tx3 = await staking.connect(addr1).stakeLocked(FIXED_180_DAYS, { value: stake3Amount });
+    let receipt3 = await tx3.wait();
+    const stake3Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    console.log(`Stake 3 ID: ${stake3Id}`);
+    
+    // 验证总质押数量
+    const totalStakes = await staking.getUserLockedStakeCount(addr1.address);
+    console.log(`\nTotal stakes: ${totalStakes}`);
+    
+    // 显示所有质押的详细信息
+    console.log("\n--- Initial Stake Details ---");
+    for(let i = 0; i < totalStakes; i++) {
+        const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+        console.log(`\nStake ID ${i}:`);
+        console.log(`Shares Amount: ${ethers.formatEther(stakeInfo.sharesAmount)}`);
+        console.log(`HSK Amount: ${ethers.formatEther(stakeInfo.hskAmount)}`);
+        console.log(`Lock End Time: ${new Date(Number(stakeInfo.lockEndTime) * 1000).toLocaleString()}`);
+        console.log(`Withdrawn: ${stakeInfo.isWithdrawn}`);
+        console.log(`Currently Locked: ${stakeInfo.isLocked}`);
+    }
+    
+    // 提前解除质押，顺序：2 -> 0 -> 1
+    console.log("\n--- Starting Early Withdrawals ---");
+    
+    // 获取初始余额
+    const initialBalance = await ethers.provider.getBalance(addr1.address);
+    console.log(`\nInitial balance: ${ethers.formatEther(initialBalance)} HSK`);
+    
+    // 首先解除第二笔质押（ID: 1）
+    console.log("\nUnstaking second stake (ID: 1):");
+    const tx4 = await staking.connect(addr1).unstakeLocked(1);
+    const receipt4 = await tx4.wait();
+    const stake2Info = await staking.getLockedStakeInfo(addr1.address, 1);
+    console.log(`Withdrawn status: ${stake2Info.isWithdrawn}`);
+    
+    // 然后解除第一笔质押（ID: 0）
+    console.log("\nUnstaking first stake (ID: 0):");
+    const tx5 = await staking.connect(addr1).unstakeLocked(0);
+    const receipt5 = await tx5.wait();
+    const stake1Info = await staking.getLockedStakeInfo(addr1.address, 0);
+    console.log(`Withdrawn status: ${stake1Info.isWithdrawn}`);
+    
+    // 最后解除第三笔质押（ID: 2）
+    console.log("\nUnstaking third stake (ID: 2):");
+    const tx6 = await staking.connect(addr1).unstakeLocked(2);
+    const receipt6 = await tx6.wait();
+    const stake3Info = await staking.getLockedStakeInfo(addr1.address, 2);
+    console.log(`Withdrawn status: ${stake3Info.isWithdrawn}`);
+    
+    // 计算总的 gas 费用
+    const totalGasUsed = receipt4.gasUsed * receipt4.gasPrice +
+                        receipt5.gasUsed * receipt5.gasPrice +
+                        receipt6.gasUsed * receipt6.gasPrice;
+    
+    // 获取最终余额
+    const finalBalance = await ethers.provider.getBalance(addr1.address);
+    console.log(`\nFinal balance: ${ethers.formatEther(finalBalance)} HSK`);
+    
+    // 计算实际返还金额（考虑 gas 费用）
+    const actualReturn = finalBalance - initialBalance + totalGasUsed;
+    console.log(`Total gas cost: ${ethers.formatEther(totalGasUsed)} HSK`);
+    console.log(`Actual return (including gas): ${ethers.formatEther(actualReturn)} HSK`);
+    
+    // 验证所有质押都已提取
+    console.log("\n--- Final Stake Status ---");
+    for(let i = 0; i < totalStakes; i++) {
+        const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+        console.log(`\nStake ID ${i}:`);
+        console.log(`Withdrawn: ${stakeInfo.isWithdrawn}`);
+        console.log(`Current HSK Value: ${ethers.formatEther(stakeInfo.currentHskValue)}`);
+    }
+    
+    // 验证
+    expect(stake1Info.isWithdrawn).to.be.true;
+    expect(stake2Info.isWithdrawn).to.be.true;
+    expect(stake3Info.isWithdrawn).to.be.true;
+    
+    // 验证总质押量已正确减少
+    const finalTotalStaked = await staking.totalValueLocked();
+    console.log(`\nFinal total staked: ${ethers.formatEther(finalTotalStaked)} HSK`);
+    
+    console.log("\n=== Multiple Stakes Test Completed ===");
+  });
 }); 
