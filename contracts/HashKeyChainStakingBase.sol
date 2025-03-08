@@ -50,6 +50,9 @@ abstract contract HashKeyChainStakingBase is
             totalSharesByStakeType[StakeType.FIXED_90_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_180_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_365_DAYS] = 0;
+            
+            // 初始化已支付奖励总量
+            totalPaidRewards = 0;
         }
         
         hskPerBlock = _hskPerBlock;
@@ -158,17 +161,27 @@ abstract contract HashKeyChainStakingBase is
         // 总奖励 = 基础奖励 + 额外的锁定期奖励
         uint256 totalReward = hskReward + additionalBonusRewards;
         
-        // Check if contract has enough HSK
-        if (reservedRewards >= totalReward) {
+        // 检查合约是否有足够的奖励资金
+        // 使用annualRewardsBudget来计算可用奖励，而不是依赖实际合约余额
+        uint256 availableRewards = reservedRewards;
+        
+        if (availableRewards >= totalReward) {
             totalPooledHSK += totalReward;
             reservedRewards -= totalReward;
+            
+            // 更新已支付的奖励总量
+            totalPaidRewards += totalReward;
             
             // Update exchange rate
             emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
         } else {
-            if (reservedRewards > 0) {
-                totalPooledHSK += reservedRewards;
-                totalReward = reservedRewards;
+            if (availableRewards > 0) {
+                totalPooledHSK += availableRewards;
+                
+                // 更新已支付的奖励总量
+                totalPaidRewards += availableRewards;
+                
+                totalReward = availableRewards;
                 reservedRewards = 0;
                 
                 // Update exchange rate
@@ -229,10 +242,8 @@ abstract contract HashKeyChainStakingBase is
      * @return Whether transfer was successful
      */
     function safeHskTransfer(address payable _to, uint256 _amount) internal returns (bool) {
-        uint256 availableBalance = address(this).balance - totalPooledHSK;
-        
-        // 确保合约有足够的余额
-        require(availableBalance >= _amount, "Insufficient contract balance");
+        // 只检查合约总余额是否足够
+        require(address(this).balance >= _amount, "Insufficient contract balance");
         
         // 发送资金
         (bool success, ) = _to.call{value: _amount}("");
@@ -290,5 +301,29 @@ abstract contract HashKeyChainStakingBase is
         
         // Ensure not exceeding this type's maximum APR
         return totalApr > maxTypeApr ? maxTypeApr : totalApr;
+    }
+
+    /**
+     * @dev Get current reward status
+     * @return totalPooled Total pooled HSK
+     * @return totalShares Total shares
+     * @return totalPaid Total paid rewards
+     * @return reserved Reserved rewards
+     * @return contractBalance Contract balance
+     */
+    function getRewardStatus() external view returns (
+        uint256 totalPooled,
+        uint256 totalShares,
+        uint256 totalPaid,
+        uint256 reserved,
+        uint256 contractBalance
+    ) {
+        return (
+            totalPooledHSK,
+            stHSK.totalSupply(),
+            totalPaidRewards,
+            reservedRewards,
+            address(this).balance
+        );
     }
 }

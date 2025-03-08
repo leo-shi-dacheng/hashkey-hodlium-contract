@@ -154,8 +154,30 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Mark stake as withdrawn
         lockedStake.withdrawn = true;
         
-        // Update total staked amount
-        totalPooledHSK -= hskToReturn;
+        // 计算原始质押金额和奖励部分
+        uint256 originalStake = lockedStake.hskAmount;
+        uint256 rewardPart = 0;
+        
+        // 如果返还金额大于原始质押金额，则差额为奖励部分
+        if (hskToReturn > originalStake) {
+            rewardPart = hskToReturn - originalStake;
+        } else {
+            // 如果返还金额小于原始质押金额（可能是因为提前提取的罚金），则全部视为原始质押
+            originalStake = hskToReturn;
+        }
+        
+        // 更新总质押金额，只减去原始质押部分
+        totalPooledHSK -= originalStake;
+        
+        // 如果有奖励部分，从已支付奖励中减去
+        if (rewardPart > 0) {
+            // 确保不会减去超过已支付奖励的金额
+            if (rewardPart > totalPaidRewards) {
+                rewardPart = totalPaidRewards;
+            }
+            totalPaidRewards -= rewardPart;
+            totalPooledHSK -= rewardPart;
+        }
         
         // Check if user has enough stHSK
         require(stHSK.balanceOf(msg.sender) >= sharesToBurn, "Insufficient stHSK balance");
@@ -184,8 +206,32 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Calculate HSK amount to return
         uint256 hskToReturn = getHSKForShares(_sharesAmount);
         
-        // Update total staked amount
-        totalPooledHSK -= hskToReturn;
+        // 计算原始质押金额和奖励部分
+        // 对于普通质押，我们没有记录原始质押金额，所以需要估算
+        // 使用当前的shares比例来估算原始质押部分
+        uint256 totalShares = stHSK.totalSupply();
+        uint256 originalStakeRatio = (_sharesAmount * BASIS_POINTS) / totalShares;
+        uint256 originalStake = (totalPooledHSK * originalStakeRatio) / BASIS_POINTS;
+        
+        // 确保原始质押不超过返还金额
+        if (originalStake > hskToReturn) {
+            originalStake = hskToReturn;
+        }
+        
+        uint256 rewardPart = hskToReturn - originalStake;
+        
+        // 更新总质押金额，只减去原始质押部分
+        totalPooledHSK -= originalStake;
+        
+        // 如果有奖励部分，从已支付奖励中减去
+        if (rewardPart > 0) {
+            // 确保不会减去超过已支付奖励的金额
+            if (rewardPart > totalPaidRewards) {
+                rewardPart = totalPaidRewards;
+            }
+            totalPaidRewards -= rewardPart;
+            totalPooledHSK -= rewardPart;
+        }
         
         if (_sharesAmount <= totalUnlockedShares) {
             totalUnlockedShares -= _sharesAmount;

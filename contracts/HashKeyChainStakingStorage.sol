@@ -74,4 +74,7 @@ abstract contract HashKeyChainStakingStorage {
     
     // 跟踪未锁定质押的总量（以shares计算）
     uint256 public totalUnlockedShares;
+    
+    // 跟踪已支付的奖励总量
+    uint256 public totalPaidRewards;
 }

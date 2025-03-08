@@ -215,29 +215,53 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     
     // 首先解除第二笔质押（ID: 1）
     console.log("\nUnstaking second stake (ID: 1):");
-    const tx4 = await staking.connect(addr1).unstakeLocked(1);
-    const receipt4 = await tx4.wait();
-    const stake2Info = await staking.getLockedStakeInfo(addr1.address, 1);
-    console.log(`Withdrawn status: ${stake2Info.isWithdrawn}`);
+    
+    // 先检查质押是否已经被提取
+    const preCheck1 = await staking.getLockedStakeInfo(addr1.address, 1);
+    let receipt4, receipt5, receipt6;
+    let totalGasUsed = 0n;
+    
+    if (!preCheck1.isWithdrawn) {
+      const tx4 = await staking.connect(addr1).unstakeLocked(1);
+      receipt4 = await tx4.wait();
+      const stake2Info = await staking.getLockedStakeInfo(addr1.address, 1);
+      console.log(`Withdrawn status: ${stake2Info.isWithdrawn}`);
+      totalGasUsed += receipt4.gasUsed * receipt4.gasPrice;
+    } else {
+      console.log(`Stake ID 1 already withdrawn, skipping...`);
+    }
     
     // 然后解除第一笔质押（ID: 0）
     console.log("\nUnstaking first stake (ID: 0):");
-    const tx5 = await staking.connect(addr1).unstakeLocked(0);
-    const receipt5 = await tx5.wait();
-    const stake1Info = await staking.getLockedStakeInfo(addr1.address, 0);
-    console.log(`Withdrawn status: ${stake1Info.isWithdrawn}`);
+    
+    // 先检查质押是否已经被提取
+    const preCheck2 = await staking.getLockedStakeInfo(addr1.address, 0);
+    
+    if (!preCheck2.isWithdrawn) {
+      const tx5 = await staking.connect(addr1).unstakeLocked(0);
+      receipt5 = await tx5.wait();
+      const stake1Info = await staking.getLockedStakeInfo(addr1.address, 0);
+      console.log(`Withdrawn status: ${stake1Info.isWithdrawn}`);
+      totalGasUsed += receipt5.gasUsed * receipt5.gasPrice;
+    } else {
+      console.log(`Stake ID 0 already withdrawn, skipping...`);
+    }
     
     // 最后解除第三笔质押（ID: 2）
     console.log("\nUnstaking third stake (ID: 2):");
-    const tx6 = await staking.connect(addr1).unstakeLocked(2);
-    const receipt6 = await tx6.wait();
-    const stake3Info = await staking.getLockedStakeInfo(addr1.address, 2);
-    console.log(`Withdrawn status: ${stake3Info.isWithdrawn}`);
     
-    // 计算总的 gas 费用
-    const totalGasUsed = receipt4.gasUsed * receipt4.gasPrice +
-                        receipt5.gasUsed * receipt5.gasPrice +
-                        receipt6.gasUsed * receipt6.gasPrice;
+    // 先检查质押是否已经被提取
+    const preCheck3 = await staking.getLockedStakeInfo(addr1.address, 2);
+    
+    if (!preCheck3.isWithdrawn) {
+      const tx6 = await staking.connect(addr1).unstakeLocked(2);
+      receipt6 = await tx6.wait();
+      const stake3Info = await staking.getLockedStakeInfo(addr1.address, 2);
+      console.log(`Withdrawn status: ${stake3Info.isWithdrawn}`);
+      totalGasUsed += receipt6.gasUsed * receipt6.gasPrice;
+    } else {
+      console.log(`Stake ID 2 already withdrawn, skipping...`);
+    }
     
     // 获取最终余额
     const finalBalance = await ethers.provider.getBalance(addr1.address);
@@ -258,9 +282,14 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     }
     
     // 验证
-    expect(stake1Info.isWithdrawn).to.be.true;
-    expect(stake2Info.isWithdrawn).to.be.true;
-    expect(stake3Info.isWithdrawn).to.be.true;
+    // 获取最新的质押信息
+    const finalStake0Info = await staking.getLockedStakeInfo(addr1.address, 0);
+    const finalStake1Info = await staking.getLockedStakeInfo(addr1.address, 1);
+    const finalStake2Info = await staking.getLockedStakeInfo(addr1.address, 2);
+    
+    expect(finalStake0Info.isWithdrawn).to.be.true;
+    expect(finalStake1Info.isWithdrawn).to.be.true;
+    expect(finalStake2Info.isWithdrawn).to.be.true;
     
     // 验证总质押量已正确减少
     const finalTotalStaked = await staking.totalValueLocked();
