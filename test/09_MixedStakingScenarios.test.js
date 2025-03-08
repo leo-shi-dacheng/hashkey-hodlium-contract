@@ -416,4 +416,153 @@ describe("HashKeyChain Staking - Mixed Staking Scenarios", function () {
     // 使用一个足够大的阈值
     expect(finalStatus.totalShares).to.be.lessThan(ethers.parseEther("1"));
   });
+
+  it("测试普通质押的getStakeReward与unstake的一致性", async function() {
+    // 1. 用户1进行普通质押
+    const stakeAmount = ethers.parseEther("200");
+    await staking.connect(addr1).stake({ value: stakeAmount });
+    
+    // 记录初始状态
+    await logContractState("普通质押后状态");
+    
+    // 获取用户1的stHSK余额
+    const initialStHSKBalance = await stHSK.balanceOf(addr1.address);
+    console.log(`用户1的初始stHSK余额: ${ethers.formatEther(initialStHSKBalance)} stHSK`);
+    
+    // 2. 等待一段时间，让奖励累积
+    await time.increase(30 * 24 * 60 * 60); // 30天
+    
+    // 模拟一些区块的产生，以触发奖励累积
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    // 添加一些额外的奖励，确保有足够的奖励可以分配
+    await owner.sendTransaction({
+      to: await staking.getAddress(),
+      value: ethers.parseEther("5")
+    });
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 3. 计算普通质押的当前价值
+    // 对于普通质押，我们需要使用getHSKForShares来计算当前价值
+    const currentValue = await staking.getHSKForShares(initialStHSKBalance);
+    console.log(`\n=== 30天后普通质押的价值 ===`);
+    console.log(`原始质押金额: ${ethers.formatEther(stakeAmount)} HSK`);
+    console.log(`当前stHSK余额: ${ethers.formatEther(initialStHSKBalance)} stHSK`);
+    console.log(`当前HSK价值: ${ethers.formatEther(currentValue)} HSK`);
+    
+    // 计算收益
+    const reward = currentValue - stakeAmount;
+    console.log(`累积收益: ${ethers.formatEther(reward)} HSK`);
+    
+    // 4. 解锁一半的普通质押
+    const halfShares = initialStHSKBalance / 2n;
+    console.log(`\n=== 解锁一半普通质押 ===`);
+    console.log(`解锁的stHSK数量: ${ethers.formatEther(halfShares)} stHSK`);
+    
+    // 预测解锁一半将获得的HSK
+    const expectedHalfValue = await staking.getHSKForShares(halfShares);
+    console.log(`预期获得的HSK: ${ethers.formatEther(expectedHalfValue)} HSK`);
+    
+    // 执行解锁
+    const beforeBalance = await ethers.provider.getBalance(addr1.address);
+    const tx = await staking.connect(addr1).unstake(halfShares);
+    const receipt = await tx.wait();
+    const gasUsed = receipt.gasUsed * receipt.gasPrice;
+    const afterBalance = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived = afterBalance - beforeBalance + gasUsed;
+    console.log(`实际收到: ${ethers.formatEther(actualReceived)} HSK`);
+    
+    // 计算差异
+    const difference = actualReceived > expectedHalfValue ? 
+      actualReceived - expectedHalfValue : expectedHalfValue - actualReceived;
+    const differencePercent = Number(ethers.formatEther(difference)) / 
+      Number(ethers.formatEther(expectedHalfValue)) * 100;
+    
+    console.log(`差异: ${ethers.formatEther(difference)} HSK (${differencePercent.toFixed(4)}%)`);
+    
+    // 验证差异不超过0.1%
+    expect(differencePercent).to.be.lt(0.1);
+    
+    // 5. 再等待一段时间
+    await time.increase(30 * 24 * 60 * 60); // 再等30天
+    
+    // 模拟一些区块的产生
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 6. 计算剩余普通质押的当前价值
+    const remainingShares = await stHSK.balanceOf(addr1.address);
+    const remainingValue = await staking.getHSKForShares(remainingShares);
+    
+    console.log(`\n=== 60天后剩余普通质押的价值 ===`);
+    console.log(`剩余stHSK余额: ${ethers.formatEther(remainingShares)} stHSK`);
+    console.log(`当前HSK价值: ${ethers.formatEther(remainingValue)} HSK`);
+    
+    // 7. 解锁剩余的普通质押
+    console.log(`\n=== 解锁剩余普通质押 ===`);
+    
+    // 预测解锁剩余部分将获得的HSK
+    console.log(`预期获得的HSK: ${ethers.formatEther(remainingValue)} HSK`);
+    
+    // 执行解锁
+    const beforeBalance2 = await ethers.provider.getBalance(addr1.address);
+    const tx2 = await staking.connect(addr1).unstake(remainingShares);
+    const receipt2 = await tx2.wait();
+    const gasUsed2 = receipt2.gasUsed * receipt2.gasPrice;
+    const afterBalance2 = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived2 = afterBalance2 - beforeBalance2 + gasUsed2;
+    console.log(`实际收到: ${ethers.formatEther(actualReceived2)} HSK`);
+    
+    // 计算差异
+    const difference2 = actualReceived2 > remainingValue ? 
+      actualReceived2 - remainingValue : remainingValue - actualReceived2;
+    const differencePercent2 = Number(ethers.formatEther(difference2)) / 
+      Number(ethers.formatEther(remainingValue)) * 100;
+    
+    console.log(`差异: ${ethers.formatEther(difference2)} HSK (${differencePercent2.toFixed(4)}%)`);
+    
+    // 验证差异不超过0.1%
+    expect(differencePercent2).to.be.lt(0.1);
+    
+    // 8. 验证用户1的stHSK余额为0
+    const finalStHSKBalance = await stHSK.balanceOf(addr1.address);
+    expect(finalStHSKBalance).to.equal(0);
+    
+    // 记录最终状态
+    await logContractState("所有普通质押解锁后");
+    
+    // 9. 验证总收益计算
+    const totalReceived = actualReceived + actualReceived2;
+    const expectedTotal = expectedHalfValue + remainingValue;
+    
+    console.log(`\n=== 总收益验证 ===`);
+    console.log(`原始质押金额: ${ethers.formatEther(stakeAmount)} HSK`);
+    console.log(`总共收到: ${ethers.formatEther(totalReceived)} HSK`);
+    console.log(`预期总收益: ${ethers.formatEther(expectedTotal)} HSK`);
+    console.log(`净收益: ${ethers.formatEther(totalReceived - stakeAmount)} HSK`);
+    
+    // 验证总收到金额大于原始质押金额（有收益）
+    expect(totalReceived).to.be.gt(stakeAmount);
+    
+    // 验证总收到金额与预期总收益接近
+    const totalDifference = totalReceived > expectedTotal ? 
+      totalReceived - expectedTotal : expectedTotal - totalReceived;
+    const totalDifferencePercent = Number(ethers.formatEther(totalDifference)) / 
+      Number(ethers.formatEther(expectedTotal)) * 100;
+    
+    console.log(`总差异: ${ethers.formatEther(totalDifference)} HSK (${totalDifferencePercent.toFixed(4)}%)`);
+    
+    // 验证总差异不超过0.1%
+    expect(totalDifferencePercent).to.be.lt(0.1);
+  });
 }); 

@@ -378,4 +378,214 @@ describe("HashKeyChain Staking - UnstakeLocked Bug Fix", function () {
     // 使用一个足够大的阈值
     expect(finalStatus.totalShares).to.be.lessThan(ethers.parseEther("1"));
   });
+
+  it("测试getStakeReward与unstakeLocked的一致性：验证提前解锁惩罚和收益计算", async function() {
+    // 1. 用户1进行三次不同期限的锁定质押
+    const stakeAmount = ethers.parseEther("100");
+    
+    // 30天锁定质押
+    await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    const stake30Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    
+    // 90天锁定质押
+    await staking.connect(addr1).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    const stake90Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    
+    // 180天锁定质押
+    await staking.connect(addr1).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
+    const stake180Id = Number(await staking.getUserLockedStakeCount(addr1.address)) - 1;
+    
+    // 记录初始状态
+    console.log("\n=== 初始质押状态 ===");
+    await logUserStakes(addr1.address, "用户1三次质押后");
+    await logContractState("初始质押状态");
+    
+    // 2. 等待一段时间，让奖励累积
+    await time.increase(15 * 24 * 60 * 60); // 15天
+    
+    // 模拟一些区块的产生，以触发奖励累积
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    // 添加一些额外的奖励，确保有足够的奖励可以分配
+    await owner.sendTransaction({
+      to: await staking.getAddress(),
+      value: ethers.parseEther("5")
+    });
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 3. 使用getStakeReward查询各个质押的收益
+    console.log("\n=== 15天后各质押的收益预测 ===");
+    
+    // 30天质押的收益预测
+    const reward30 = await staking.getStakeReward(addr1.address, stake30Id);
+    console.log(`30天质押的原始金额: ${ethers.formatEther(reward30[0])} HSK`);
+    console.log(`30天质押的当前收益: ${ethers.formatEther(reward30[1])} HSK`);
+    console.log(`30天质押的实际收益(考虑惩罚): ${ethers.formatEther(reward30[2])} HSK`);
+    console.log(`30天质押的总价值: ${ethers.formatEther(reward30[3])} HSK`);
+    
+    // 计算惩罚比例
+    const penalty30Ratio = reward30[1] > 0 ? 
+      Number(ethers.formatEther(reward30[1] - reward30[2])) / Number(ethers.formatEther(reward30[1])) * 100 : 0;
+    console.log(`30天质押的惩罚比例: ${penalty30Ratio.toFixed(2)}%`);
+    
+    // 90天质押的收益预测
+    const reward90 = await staking.getStakeReward(addr1.address, stake90Id);
+    console.log(`\n90天质押的原始金额: ${ethers.formatEther(reward90[0])} HSK`);
+    console.log(`90天质押的当前收益: ${ethers.formatEther(reward90[1])} HSK`);
+    console.log(`90天质押的实际收益(考虑惩罚): ${ethers.formatEther(reward90[2])} HSK`);
+    console.log(`90天质押的总价值: ${ethers.formatEther(reward90[3])} HSK`);
+    
+    // 计算惩罚比例
+    const penalty90Ratio = reward90[1] > 0 ? 
+      Number(ethers.formatEther(reward90[1] - reward90[2])) / Number(ethers.formatEther(reward90[1])) * 100 : 0;
+    console.log(`90天质押的惩罚比例: ${penalty90Ratio.toFixed(2)}%`);
+    
+    // 180天质押的收益预测
+    const reward180 = await staking.getStakeReward(addr1.address, stake180Id);
+    console.log(`\n180天质押的原始金额: ${ethers.formatEther(reward180[0])} HSK`);
+    console.log(`180天质押的当前收益: ${ethers.formatEther(reward180[1])} HSK`);
+    console.log(`180天质押的实际收益(考虑惩罚): ${ethers.formatEther(reward180[2])} HSK`);
+    console.log(`180天质押的总价值: ${ethers.formatEther(reward180[3])} HSK`);
+    
+    // 计算惩罚比例
+    const penalty180Ratio = reward180[1] > 0 ? 
+      Number(ethers.formatEther(reward180[1] - reward180[2])) / Number(ethers.formatEther(reward180[1])) * 100 : 0;
+    console.log(`180天质押的惩罚比例: ${penalty180Ratio.toFixed(2)}%`);
+    
+    // 验证惩罚比例：锁定期越长，提前解锁的惩罚应该越高
+    expect(penalty180Ratio).to.be.gt(penalty90Ratio);
+    expect(penalty90Ratio).to.be.gt(penalty30Ratio);
+    
+    // 4. 提前解锁30天质押，验证实际收益与预测一致
+    console.log("\n=== 提前解锁30天质押 ===");
+    const beforeBalance = await ethers.provider.getBalance(addr1.address);
+    const tx = await staking.connect(addr1).unstakeLocked(stake30Id);
+    const receipt = await tx.wait();
+    const gasUsed = receipt.gasUsed * receipt.gasPrice;
+    const afterBalance = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived = afterBalance - beforeBalance + gasUsed;
+    console.log(`实际收到: ${ethers.formatEther(actualReceived)} HSK`);
+    console.log(`getStakeReward预测: ${ethers.formatEther(reward30[3])} HSK`);
+    
+    // 计算差异
+    const difference = actualReceived > reward30[3] ? 
+      actualReceived - reward30[3] : reward30[3] - actualReceived;
+    const differencePercent = Number(ethers.formatEther(difference)) / Number(ethers.formatEther(reward30[3])) * 100;
+    
+    console.log(`差异: ${ethers.formatEther(difference)} HSK (${differencePercent.toFixed(4)}%)`);
+    
+    // 验证差异不超过0.1%
+    expect(differencePercent).to.be.lt(0.1);
+    
+    // 5. 等待30天质押期结束
+    await time.increase(15 * 24 * 60 * 60); // 再等15天，总共30天
+    
+    // 模拟一些区块的产生
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 6. 使用getStakeReward查询90天质押的收益（此时已过30天）
+    console.log("\n=== 30天后90天质押的收益预测 ===");
+    const reward90After30Days = await staking.getStakeReward(addr1.address, stake90Id);
+    console.log(`90天质押的原始金额: ${ethers.formatEther(reward90After30Days[0])} HSK`);
+    console.log(`90天质押的当前收益: ${ethers.formatEther(reward90After30Days[1])} HSK`);
+    console.log(`90天质押的实际收益(考虑惩罚): ${ethers.formatEther(reward90After30Days[2])} HSK`);
+    console.log(`90天质押的总价值: ${ethers.formatEther(reward90After30Days[3])} HSK`);
+    
+    // 计算惩罚比例
+    const penalty90RatioAfter30Days = reward90After30Days[1] > 0 ? 
+      Number(ethers.formatEther(reward90After30Days[1] - reward90After30Days[2])) / 
+      Number(ethers.formatEther(reward90After30Days[1])) * 100 : 0;
+    console.log(`90天质押的惩罚比例: ${penalty90RatioAfter30Days.toFixed(2)}%`);
+    
+    // 验证惩罚比例降低（因为已经过了更多的锁定期）
+    expect(penalty90RatioAfter30Days).to.be.lt(penalty90Ratio);
+    
+    // 7. 正常解锁90天质押（提前解锁，但已过30天）
+    console.log("\n=== 提前解锁90天质押（已过30天） ===");
+    const beforeBalance2 = await ethers.provider.getBalance(addr1.address);
+    const tx2 = await staking.connect(addr1).unstakeLocked(stake90Id);
+    const receipt2 = await tx2.wait();
+    const gasUsed2 = receipt2.gasUsed * receipt2.gasPrice;
+    const afterBalance2 = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived2 = afterBalance2 - beforeBalance2 + gasUsed2;
+    console.log(`实际收到: ${ethers.formatEther(actualReceived2)} HSK`);
+    console.log(`getStakeReward预测: ${ethers.formatEther(reward90After30Days[3])} HSK`);
+    
+    // 计算差异
+    const difference2 = actualReceived2 > reward90After30Days[3] ? 
+      actualReceived2 - reward90After30Days[3] : reward90After30Days[3] - actualReceived2;
+    const differencePercent2 = Number(ethers.formatEther(difference2)) / 
+      Number(ethers.formatEther(reward90After30Days[3])) * 100;
+    
+    console.log(`差异: ${ethers.formatEther(difference2)} HSK (${differencePercent2.toFixed(4)}%)`);
+    
+    // 验证差异不超过0.1%
+    expect(differencePercent2).to.be.lt(0.1);
+    
+    // 8. 等待180天质押期结束
+    await time.increase(150 * 24 * 60 * 60); // 再等150天，总共180天
+    
+    // 模拟一些区块的产生
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 9. 使用getStakeReward查询180天质押的收益（此时已满180天）
+    console.log("\n=== 180天后180天质押的收益预测 ===");
+    const reward180After180Days = await staking.getStakeReward(addr1.address, stake180Id);
+    console.log(`180天质押的原始金额: ${ethers.formatEther(reward180After180Days[0])} HSK`);
+    console.log(`180天质押的当前收益: ${ethers.formatEther(reward180After180Days[1])} HSK`);
+    console.log(`180天质押的实际收益(考虑惩罚): ${ethers.formatEther(reward180After180Days[2])} HSK`);
+    console.log(`180天质押的总价值: ${ethers.formatEther(reward180After180Days[3])} HSK`);
+    
+    // 验证锁定期结束后没有惩罚
+    expect(reward180After180Days[1]).to.equal(reward180After180Days[2]);
+    
+    // 10. 正常解锁180天质押（已满180天）
+    console.log("\n=== 正常解锁180天质押（已满180天） ===");
+    const beforeBalance3 = await ethers.provider.getBalance(addr1.address);
+    const tx3 = await staking.connect(addr1).unstakeLocked(stake180Id);
+    const receipt3 = await tx3.wait();
+    const gasUsed3 = receipt3.gasUsed * receipt3.gasPrice;
+    const afterBalance3 = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived3 = afterBalance3 - beforeBalance3 + gasUsed3;
+    console.log(`实际收到: ${ethers.formatEther(actualReceived3)} HSK`);
+    console.log(`getStakeReward预测: ${ethers.formatEther(reward180After180Days[3])} HSK`);
+    
+    // 计算差异
+    const difference3 = actualReceived3 > reward180After180Days[3] ? 
+      actualReceived3 - reward180After180Days[3] : reward180After180Days[3] - actualReceived3;
+    const differencePercent3 = Number(ethers.formatEther(difference3)) / 
+      Number(ethers.formatEther(reward180After180Days[3])) * 100;
+    
+    console.log(`差异: ${ethers.formatEther(difference3)} HSK (${differencePercent3.toFixed(4)}%)`);
+    
+    // 验证差异不超过0.1%
+    expect(differencePercent3).to.be.lt(0.1);
+    
+    // 11. 验证所有质押都已解锁
+    const finalStakeCount = await staking.getUserLockedStakeCount(addr1.address);
+    for (let i = 0; i < finalStakeCount; i++) {
+      const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+      expect(stakeInfo.isWithdrawn).to.be.true;
+    }
+    
+    // 记录最终状态
+    await logContractState("所有质押解锁后");
+  });
 }); 

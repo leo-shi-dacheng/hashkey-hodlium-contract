@@ -297,4 +297,124 @@ describe("HashKeyChain Staking - Locked Staking", function () {
     
     console.log("\n=== Multiple Stakes Test Completed ===");
   });
+
+  it("Should correctly calculate stake rewards using getStakeReward", async function() {
+    // 1. 用户进行锁定质押
+    const stakeAmount = ethers.parseEther("200");
+    await staking.connect(addr1).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    
+    // 获取质押ID
+    const stakeCount = await staking.getUserLockedStakeCount(addr1.address);
+    const stakeId = Number(stakeCount) - 1;
+    
+    // 2. 初始状态下查询收益
+    console.log("\n--- Initial Reward Status ---");
+    const initialReward = await staking.getStakeReward(addr1.address, stakeId);
+    console.log(`Original Amount: ${ethers.formatEther(initialReward[0])} HSK`);
+    console.log(`Current Reward: ${ethers.formatEther(initialReward[1])} HSK`);
+    console.log(`Actual Reward (after penalty): ${ethers.formatEther(initialReward[2])} HSK`);
+    console.log(`Total Value: ${ethers.formatEther(initialReward[3])} HSK`);
+    
+    // 验证初始状态
+    expect(initialReward[0]).to.equal(stakeAmount); // 原始质押金额
+    expect(initialReward[1]).to.be.lte(ethers.parseEther("0.001")); // 初始收益应该很小
+    expect(initialReward[2]).to.be.lte(initialReward[1]); // 实际收益应该小于等于总收益（因为有惩罚）
+    
+    // 由于最小流动性的影响，总价值可能略小于质押金额
+    // 允许有0.1%的误差
+    const valueRatio = Number(ethers.formatEther(initialReward[3])) / Number(ethers.formatEther(stakeAmount));
+    expect(valueRatio).to.be.gte(0.999); // 总价值应该至少是质押金额的99.9%
+    
+    // 3. 等待一段时间，让奖励累积
+    await time.increase(30 * 24 * 60 * 60); // 30天
+    
+    // 模拟一些区块的产生，以触发奖励累积
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 添加一些额外的奖励，确保有足够的奖励可以分配
+    await owner.sendTransaction({
+      to: await staking.getAddress(),
+      value: ethers.parseEther("5")
+    });
+    
+    // 再次更新奖励池
+    await staking.updateRewardPool();
+    
+    // 4. 累积奖励后查询收益
+    console.log("\n--- Reward Status After 30 Days ---");
+    const midtermReward = await staking.getStakeReward(addr1.address, stakeId);
+    console.log(`Original Amount: ${ethers.formatEther(midtermReward[0])} HSK`);
+    console.log(`Current Reward: ${ethers.formatEther(midtermReward[1])} HSK`);
+    console.log(`Actual Reward (after penalty): ${ethers.formatEther(midtermReward[2])} HSK`);
+    console.log(`Total Value: ${ethers.formatEther(midtermReward[3])} HSK`);
+    
+    // 验证奖励增长
+    expect(midtermReward[1]).to.be.gt(initialReward[1]); // 收益应该增加
+    expect(midtermReward[2]).to.be.lt(midtermReward[1]); // 由于仍在锁定期内，实际收益应该小于总收益
+    
+    // 计算惩罚比例
+    const reward1Eth = Number(ethers.formatEther(midtermReward[1]));
+    const reward2Eth = Number(ethers.formatEther(midtermReward[2]));
+    const penaltyRatio = (reward1Eth - reward2Eth) / reward1Eth;
+    console.log(`Current Penalty Ratio: ${(penaltyRatio * 100).toFixed(2)}%`);
+    
+    // 5. 等待锁定期结束
+    await time.increase(60 * 24 * 60 * 60); // 再等60天，总共90天
+    
+    // 模拟一些区块的产生，以触发奖励累积
+    for (let i = 0; i < 10; i++) {
+      await ethers.provider.send("evm_mine", []);
+    }
+    
+    await staking.updateRewardPool(); // 更新奖励池
+    
+    // 添加一些额外的奖励，确保有足够的奖励可以分配
+    await owner.sendTransaction({
+      to: await staking.getAddress(),
+      value: ethers.parseEther("5")
+    });
+    
+    // 再次更新奖励池
+    await staking.updateRewardPool();
+    
+    // 6. 锁定期结束后查询收益
+    console.log("\n--- Reward Status After Lock Period ---");
+    const finalReward = await staking.getStakeReward(addr1.address, stakeId);
+    console.log(`Original Amount: ${ethers.formatEther(finalReward[0])} HSK`);
+    console.log(`Current Reward: ${ethers.formatEther(finalReward[1])} HSK`);
+    console.log(`Actual Reward (after penalty): ${ethers.formatEther(finalReward[2])} HSK`);
+    console.log(`Total Value: ${ethers.formatEther(finalReward[3])} HSK`);
+    
+    // 验证锁定期结束后的收益
+    expect(finalReward[1]).to.be.gt(midtermReward[1]); // 收益应该继续增加
+    expect(finalReward[2]).to.equal(finalReward[1]); // 锁定期结束后，实际收益应该等于总收益（无惩罚）
+    
+    // 7. 解锁质押并验证实际获得的金额与getStakeReward返回的一致
+    const beforeBalance = await ethers.provider.getBalance(addr1.address);
+    const tx = await staking.connect(addr1).unstakeLocked(stakeId);
+    const receipt = await tx.wait();
+    const gasUsed = receipt.gasUsed * receipt.gasPrice;
+    const afterBalance = await ethers.provider.getBalance(addr1.address);
+    
+    // 计算实际获得的金额（考虑gas费用）
+    const actualReceived = afterBalance - beforeBalance + gasUsed;
+    console.log(`\nActual Received: ${ethers.formatEther(actualReceived)} HSK`);
+    
+    // 验证实际获得的金额与getStakeReward预测的接近
+    const expectedReceived = finalReward[3]; // 总价值
+    const differenceWei = actualReceived > expectedReceived 
+                        ? actualReceived - expectedReceived 
+                        : expectedReceived - actualReceived;
+    const differenceEth = Number(ethers.formatEther(differenceWei));
+    
+    console.log(`Expected from getStakeReward: ${ethers.formatEther(expectedReceived)} HSK`);
+    console.log(`Difference: ${differenceEth.toFixed(6)} HSK`);
+    
+    // 允许有小的误差（不超过0.001 HSK）
+    expect(differenceEth).to.be.lt(0.001);
+  });
 }); 

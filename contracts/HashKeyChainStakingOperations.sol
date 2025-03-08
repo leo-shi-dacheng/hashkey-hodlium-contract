@@ -251,4 +251,74 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         
         emit Unstake(msg.sender, _sharesAmount, hskToReturn, false, 0, type(uint256).max);
     }
+
+    /**
+     * @notice 获取单笔质押的当前收益
+     * @param _user 用户地址
+     * @param _stakeId 质押ID
+     * @return originalAmount 原始质押金额
+     * @return reward 当前累积的收益金额
+     * @return actualReward 考虑提前解锁惩罚后的实际收益
+     * @return totalValue 质押的当前总价值（本金+收益）
+     */
+    function getStakeReward(address _user, uint256 _stakeId) external view returns (
+        uint256 originalAmount,
+        uint256 reward,
+        uint256 actualReward,
+        uint256 totalValue
+    ) {
+        // 获取质押信息
+        require(_stakeId < lockedStakes[_user].length, "Invalid stake ID");
+        LockedStake storage stake = lockedStakes[_user][_stakeId];
+        
+        // 检查质押是否存在
+        require(stake.sharesAmount > 0, "Stake amount is zero");
+        
+        // 如果质押已提取，返回零收益
+        if (stake.withdrawn) {
+            return (stake.hskAmount, 0, 0, 0);
+        }
+        
+        // 计算当前HSK价值 - 复用getHSKForShares逻辑
+        uint256 currentHskValue = getHSKForShares(stake.sharesAmount);
+        
+        // 原始质押金额
+        originalAmount = stake.hskAmount;
+        
+        // 计算收益 = 当前价值 - 原始质押金额
+        if (currentHskValue > originalAmount) {
+            reward = currentHskValue - originalAmount;
+        } else {
+            reward = 0;
+        }
+        
+        // 计算实际收益（考虑提前解锁惩罚）
+        actualReward = reward;
+        
+        // 如果是锁定质押且当前仍在锁定期内，计算提前解锁的惩罚
+        if (block.timestamp < stake.lockEndTime) {
+            // 获取质押类型
+            StakeType stakeType;
+            if (stake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
+            else if (stake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
+            else if (stake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
+            else stakeType = StakeType.FIXED_365_DAYS;
+            
+            // 计算已经过的锁定期比例
+            uint256 elapsedTime = block.timestamp - (stake.lockEndTime - stake.lockDuration);
+            uint256 completionRatio = (elapsedTime * BASIS_POINTS) / stake.lockDuration;
+            
+            // 调整惩罚比例（完成度越高，惩罚越低）
+            uint256 adjustedPenalty = earlyWithdrawalPenalty[stakeType] * (BASIS_POINTS - completionRatio) / BASIS_POINTS;
+            
+            // 应用惩罚
+            uint256 penalty = (reward * adjustedPenalty) / BASIS_POINTS;
+            actualReward = reward - penalty;
+        }
+        
+        // 计算总价值
+        totalValue = currentHskValue;
+        
+        return (originalAmount, reward, actualReward, totalValue);
+    }
 }
