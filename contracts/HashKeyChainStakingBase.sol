@@ -218,6 +218,12 @@ abstract contract HashKeyChainStakingBase is
         if (totalShares == 0 || totalPooledHSK == 0) {
             return _hskAmount;
         }
+        
+        // 保护措施：当totalPooledHSK或totalShares小于阈值时，使用1:1汇率
+        // 这解决了全部unstakeLocked后再stake的问题
+        if (totalShares < MINIMUM_SHARES_THRESHOLD || totalPooledHSK < MINIMUM_SHARES_THRESHOLD) {
+            return _hskAmount;
+        }
          
         // 计算实际的总份额（减去最小流动性）
         uint256 effectiveTotalShares = totalShares;

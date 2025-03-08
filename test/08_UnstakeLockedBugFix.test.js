@@ -588,4 +588,84 @@ describe("HashKeyChain Staking - UnstakeLocked Bug Fix", function () {
     // 记录最终状态
     await logContractState("所有质押解锁后");
   });
+
+  it("测试全部unstakeLocked后再stake的情况", async function() {
+    // 1. 用户1进行多次质押
+    const stakeAmount = ethers.parseEther("100");
+    
+    console.log("\n=== 初始质押阶段 ===");
+    // 进行多次质押
+    for (let i = 0; i < 5; i++) {
+      await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+      console.log(`完成第 ${i+1} 次质押`);
+    }
+    
+    await logUserStakes(addr1.address, "用户1完成5次质押后");
+    await logContractState("5次质押后状态");
+    
+    // 2. 等待锁定期结束
+    await time.increase(30 * 24 * 60 * 60 + 1); // 30天 + 1秒
+    
+    console.log("\n=== 解锁所有质押 ===");
+    // 3. 解锁所有质押
+    const stakeCount = await staking.getUserLockedStakeCount(addr1.address);
+    for (let i = 0; i < stakeCount; i++) {
+      await staking.connect(addr1).unstakeLocked(i);
+      console.log(`完成第 ${i+1} 次解锁`);
+    }
+    
+    await logUserStakes(addr1.address, "用户1解锁所有质押后");
+    await logContractState("解锁所有质押后状态");
+    
+    // 4. 验证所有质押都已解锁
+    for (let i = 0; i < stakeCount; i++) {
+      const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+      expect(stakeInfo.isWithdrawn).to.be.true;
+    }
+    
+    console.log("\n=== 再次质押 ===");
+    // 5. 再次进行质押
+    await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    console.log("完成解锁后的第一次新质押");
+    
+    await logUserStakes(addr1.address, "用户1解锁后再次质押");
+    await logContractState("解锁后再次质押状态");
+    
+    // 6. 再次质押多次
+    for (let i = 0; i < 3; i++) {
+      await staking.connect(addr1).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+      console.log(`完成解锁后的第 ${i+2} 次新质押`);
+    }
+    
+    await logUserStakes(addr1.address, "用户1解锁后多次质押");
+    await logContractState("解锁后多次质押状态");
+    
+    // 7. 验证新质押的误差在5%以内
+    await verifyErrorPercentage(addr1.address);
+    
+    // 8. 等待锁定期结束
+    await time.increase(90 * 24 * 60 * 60 + 1); // 90天 + 1秒
+    
+    console.log("\n=== 解锁新的质押 ===");
+    // 9. 解锁所有新质押
+    const newStakeCount = await staking.getUserLockedStakeCount(addr1.address);
+    for (let i = 0; i < newStakeCount; i++) {
+      // 跳过已经解锁的质押
+      const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+      if (!stakeInfo.isWithdrawn) {
+        await staking.connect(addr1).unstakeLocked(i);
+        console.log(`完成新质押的第 ${i+1} 次解锁`);
+      }
+    }
+    
+    await logUserStakes(addr1.address, "用户1解锁所有新质押后");
+    await logContractState("解锁所有新质押后状态");
+    
+    // 10. 验证所有质押都已解锁
+    const finalStakeCount = await staking.getUserLockedStakeCount(addr1.address);
+    for (let i = 0; i < finalStakeCount; i++) {
+      const stakeInfo = await staking.getLockedStakeInfo(addr1.address, i);
+      expect(stakeInfo.isWithdrawn).to.be.true;
+    }
+  });
 }); 
