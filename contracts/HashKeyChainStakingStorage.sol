@@ -27,6 +27,7 @@ abstract contract HashKeyChainStakingStorage {
     uint256 internal constant MAX_APR = 3000;         // Maximum APR: 30%
     uint256 internal constant SECONDS_PER_YEAR = 365 days;
     uint256 internal constant MINIMUM_LIQUIDITY = 1000;  // 最小流动性，防止第一个质押者操纵
+    uint256 internal constant MINIMUM_SHARES_THRESHOLD = 1e16;  // 最小份额阈值，防止汇率计算异常
 
     // 是否已经初始化最小流动性
     bool public initialLiquidityMinted;
@@ -74,4 +75,7 @@ abstract contract HashKeyChainStakingStorage {
     
     // 跟踪未锁定质押的总量（以shares计算）
     uint256 public totalUnlockedShares;
+    
+    // 跟踪已支付的奖励总量
+    uint256 public totalPaidRewards;
 }

@@ -154,8 +154,30 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Mark stake as withdrawn
         lockedStake.withdrawn = true;
         
-        // Update total staked amount
-        totalPooledHSK -= hskToReturn;
+        // 计算原始质押金额和奖励部分
+        uint256 originalStake = lockedStake.hskAmount;
+        uint256 rewardPart = 0;
+        
+        // 如果返还金额大于原始质押金额，则差额为奖励部分
+        if (hskToReturn > originalStake) {
+            rewardPart = hskToReturn - originalStake;
+        } else {
+            // 如果返还金额小于原始质押金额（可能是因为提前提取的罚金），则全部视为原始质押
+            originalStake = hskToReturn;
+        }
+        
+        // 更新总质押金额，只减去原始质押部分
+        totalPooledHSK -= originalStake;
+        
+        // 如果有奖励部分，从已支付奖励中减去
+        if (rewardPart > 0) {
+            // 确保不会减去超过已支付奖励的金额
+            if (rewardPart > totalPaidRewards) {
+                rewardPart = totalPaidRewards;
+            }
+            totalPaidRewards -= rewardPart;
+            totalPooledHSK -= rewardPart;
+        }
         
         // Check if user has enough stHSK
         require(stHSK.balanceOf(msg.sender) >= sharesToBurn, "Insufficient stHSK balance");
@@ -184,8 +206,32 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Calculate HSK amount to return
         uint256 hskToReturn = getHSKForShares(_sharesAmount);
         
-        // Update total staked amount
-        totalPooledHSK -= hskToReturn;
+        // 计算原始质押金额和奖励部分
+        // 对于普通质押，我们没有记录原始质押金额，所以需要估算
+        // 使用当前的shares比例来估算原始质押部分
+        uint256 totalShares = stHSK.totalSupply();
+        uint256 originalStakeRatio = (_sharesAmount * BASIS_POINTS) / totalShares;
+        uint256 originalStake = (totalPooledHSK * originalStakeRatio) / BASIS_POINTS;
+        
+        // 确保原始质押不超过返还金额
+        if (originalStake > hskToReturn) {
+            originalStake = hskToReturn;
+        }
+        
+        uint256 rewardPart = hskToReturn - originalStake;
+        
+        // 更新总质押金额，只减去原始质押部分
+        totalPooledHSK -= originalStake;
+        
+        // 如果有奖励部分，从已支付奖励中减去
+        if (rewardPart > 0) {
+            // 确保不会减去超过已支付奖励的金额
+            if (rewardPart > totalPaidRewards) {
+                rewardPart = totalPaidRewards;
+            }
+            totalPaidRewards -= rewardPart;
+            totalPooledHSK -= rewardPart;
+        }
         
         if (_sharesAmount <= totalUnlockedShares) {
             totalUnlockedShares -= _sharesAmount;
@@ -204,5 +250,75 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         require(success, "HSK transfer failed");
         
         emit Unstake(msg.sender, _sharesAmount, hskToReturn, false, 0, type(uint256).max);
+    }
+
+    /**
+     * @notice 获取单笔质押的当前收益
+     * @param _user 用户地址
+     * @param _stakeId 质押ID
+     * @return originalAmount 原始质押金额
+     * @return reward 当前累积的收益金额
+     * @return actualReward 考虑提前解锁惩罚后的实际收益
+     * @return totalValue 质押的当前总价值（本金+收益）
+     */
+    function getStakeReward(address _user, uint256 _stakeId) external view returns (
+        uint256 originalAmount,
+        uint256 reward,
+        uint256 actualReward,
+        uint256 totalValue
+    ) {
+        // 获取质押信息
+        require(_stakeId < lockedStakes[_user].length, "Invalid stake ID");
+        LockedStake storage userStake = lockedStakes[_user][_stakeId];
+        
+        // 检查质押是否存在
+        require(userStake.sharesAmount > 0, "Stake amount is zero");
+        
+        // 如果质押已提取，返回零收益
+        if (userStake.withdrawn) {
+            return (userStake.hskAmount, 0, 0, 0);
+        }
+        
+        // 计算当前HSK价值 - 复用getHSKForShares逻辑
+        uint256 currentHskValue = getHSKForShares(userStake.sharesAmount);
+        
+        // 原始质押金额
+        originalAmount = userStake.hskAmount;
+        
+        // 计算收益 = 当前价值 - 原始质押金额
+        if (currentHskValue > originalAmount) {
+            reward = currentHskValue - originalAmount;
+        } else {
+            reward = 0;
+        }
+        
+        // 计算实际收益（考虑提前解锁惩罚）
+        actualReward = reward;
+        
+        // 如果是锁定质押且当前仍在锁定期内，计算提前解锁的惩罚
+        if (block.timestamp < userStake.lockEndTime) {
+            // 获取质押类型
+            StakeType stakeType;
+            if (userStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
+            else if (userStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
+            else if (userStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
+            else stakeType = StakeType.FIXED_365_DAYS;
+            
+            // 计算已经过的锁定期比例
+            uint256 elapsedTime = block.timestamp - (userStake.lockEndTime - userStake.lockDuration);
+            uint256 completionRatio = (elapsedTime * BASIS_POINTS) / userStake.lockDuration;
+            
+            // 调整惩罚比例（完成度越高，惩罚越低）
+            uint256 adjustedPenalty = earlyWithdrawalPenalty[stakeType] * (BASIS_POINTS - completionRatio) / BASIS_POINTS;
+            
+            // 应用惩罚
+            uint256 penalty = (reward * adjustedPenalty) / BASIS_POINTS;
+            actualReward = reward - penalty;
+        }
+        
+        // 计算总价值
+        totalValue = currentHskValue;
+        
+        return (originalAmount, reward, actualReward, totalValue);
     }
 }
