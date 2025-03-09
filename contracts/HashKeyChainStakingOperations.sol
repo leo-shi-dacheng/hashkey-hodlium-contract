@@ -269,21 +269,21 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
     ) {
         // 获取质押信息
         require(_stakeId < lockedStakes[_user].length, "Invalid stake ID");
-        LockedStake storage stake = lockedStakes[_user][_stakeId];
+        LockedStake storage userStake = lockedStakes[_user][_stakeId];
         
         // 检查质押是否存在
-        require(stake.sharesAmount > 0, "Stake amount is zero");
+        require(userStake.sharesAmount > 0, "Stake amount is zero");
         
         // 如果质押已提取，返回零收益
-        if (stake.withdrawn) {
-            return (stake.hskAmount, 0, 0, 0);
+        if (userStake.withdrawn) {
+            return (userStake.hskAmount, 0, 0, 0);
         }
         
         // 计算当前HSK价值 - 复用getHSKForShares逻辑
-        uint256 currentHskValue = getHSKForShares(stake.sharesAmount);
+        uint256 currentHskValue = getHSKForShares(userStake.sharesAmount);
         
         // 原始质押金额
-        originalAmount = stake.hskAmount;
+        originalAmount = userStake.hskAmount;
         
         // 计算收益 = 当前价值 - 原始质押金额
         if (currentHskValue > originalAmount) {
@@ -296,17 +296,17 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         actualReward = reward;
         
         // 如果是锁定质押且当前仍在锁定期内，计算提前解锁的惩罚
-        if (block.timestamp < stake.lockEndTime) {
+        if (block.timestamp < userStake.lockEndTime) {
             // 获取质押类型
             StakeType stakeType;
-            if (stake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
-            else if (stake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
-            else if (stake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
+            if (userStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
+            else if (userStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
+            else if (userStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
             else stakeType = StakeType.FIXED_365_DAYS;
             
             // 计算已经过的锁定期比例
-            uint256 elapsedTime = block.timestamp - (stake.lockEndTime - stake.lockDuration);
-            uint256 completionRatio = (elapsedTime * BASIS_POINTS) / stake.lockDuration;
+            uint256 elapsedTime = block.timestamp - (userStake.lockEndTime - userStake.lockDuration);
+            uint256 completionRatio = (elapsedTime * BASIS_POINTS) / userStake.lockDuration;
             
             // 调整惩罚比例（完成度越高，惩罚越低）
             uint256 adjustedPenalty = earlyWithdrawalPenalty[stakeType] * (BASIS_POINTS - completionRatio) / BASIS_POINTS;
