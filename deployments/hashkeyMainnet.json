@@ -1,0 +1,8 @@
+{
+  "network": "hashkeyMainnet",
+  "implementation": "0x8ab9c171e11E9C448FCE497782F14e2421dEbfED",
+  "proxyAdmin": "0xCA384182D1600b8110D74033382550351298654e",
+  "proxy": "0x0F94a42E3f96cf6F932469A4DaA81C43514fCafF",
+  "deployer": "0xE4081d9B05513fDd6433EeEf1601Bdd24967599F",
+  "timestamp": "2025-03-10T11:55:59.802Z"
+}
