@@ -24,7 +24,7 @@ const config: HardhatUserConfig = {
       url: "https://hashkeychain-testnet.alt.technology",
       accounts: [process.env.TEST_STAKE!!],
       chainId: 133,
-      gasPrice: 20000000000,
+      gasPrice: "auto",
       timeout: 1000000,
     },
     hashkeyMainnet: {

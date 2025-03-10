@@ -22,9 +22,9 @@ async function main() {
   const [deployer] = await ethers.getSigners();
   console.log(`Upgrading contracts with the account: ${deployer.address}`);
   
-  // 检查是否是合约所有者
-  const HashKeyChainStakingProxyAdmin = await ethers.getContractFactory("HashKeyChainStakingProxyAdmin");
-  const proxyAdmin = HashKeyChainStakingProxyAdmin.attach(deploymentInfo.proxyAdmin);
+  // 获取 ProxyAdmin 合约
+  const ProxyAdmin = await ethers.getContractFactory("ProxyAdmin");
+  const proxyAdmin = ProxyAdmin.attach(deploymentInfo.proxyAdmin);
   
   try {
     const owner = await proxyAdmin.owner();
@@ -48,20 +48,10 @@ async function main() {
   // 准备升级数据（如果需要）
   const upgradeData = "0x"; // 如果不需要调用初始化函数，使用空数据
   
-  // 如果需要在升级时调用初始化函数，可以使用以下代码
-  // const upgradeData = HashKeyChainStaking.interface.encodeFunctionData("reinitialize", [
-  //   // 初始化参数
-  // ]);
-  
   // 执行升级
   console.log("Upgrading proxy...");
-  if (upgradeData === "0x") {
-    // 如果不需要调用初始化函数，使用upgradeProxy
-    await proxyAdmin.upgradeProxy(deploymentInfo.proxy, newImplementationAddress);
-  } else {
-    // 如果需要调用初始化函数，使用upgradeProxyAndCall
-    await proxyAdmin.upgradeProxyAndCall(deploymentInfo.proxy, newImplementationAddress, upgradeData);
-  }
+  // 直接使用 upgradeAndCall 方法，与 Foundry 测试一致
+  await proxyAdmin.upgradeAndCall(deploymentInfo.proxy, newImplementationAddress, upgradeData);
   
   console.log("Proxy upgraded successfully!");
   
