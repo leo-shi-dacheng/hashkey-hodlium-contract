@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./HashKeyChainStakingEvents.sol";
@@ -27,7 +27,7 @@ abstract contract HashKeyChainStakingBase is
     ) internal onlyInitializing {
         __Pausable_init();
         __ReentrancyGuard_init();
-        __Ownable_init(msg.sender);
+        __Ownable_init();
         
         require(_hskPerBlock > 0, "HSK per block must be positive");
         require(_startBlock >= block.number, "Start block must be in the future");

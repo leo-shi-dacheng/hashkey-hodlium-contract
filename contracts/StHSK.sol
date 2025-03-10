@@ -9,7 +9,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  * @dev Token representing shares in the staking pool, value increases as staking rewards accumulate
  */
 contract StHSK is ERC20, Ownable {
-    constructor() ERC20("Staked HashKeyChain", "stHSK") Ownable(msg.sender) {
+    constructor() ERC20("Staked HashKeyChain", "stHSK") Ownable() {
         // Token is initialized without minting any supply
     }
 

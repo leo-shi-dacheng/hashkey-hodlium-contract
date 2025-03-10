@@ -21,7 +21,7 @@ contract HashKeyChainStakingProxy is TransparentUpgradeableProxy {
  * @dev Admin contract for managing proxy upgrades
  */
 contract HashKeyChainStakingProxyAdmin is ProxyAdmin {
-    constructor() ProxyAdmin(msg.sender) {}
+    constructor() {}
     
     /**
      * @dev Upgrades the proxy to a new implementation.
