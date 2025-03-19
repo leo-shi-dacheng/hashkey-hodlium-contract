@@ -136,15 +136,9 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         totalSharesByStakeType[stakeType] -= sharesToBurn;
         
         if (isEarlyWithdrawal) {
-            // Calculate elapsed lock period ratio
-            uint256 elapsedTime = block.timestamp - (lockedStake.lockEndTime - lockedStake.lockDuration);
-            uint256 completionRatio = (elapsedTime * BASIS_POINTS) / lockedStake.lockDuration;
-            
-            // Adjust penalty based on completion (higher completion, lower penalty)
-            uint256 adjustedPenalty = earlyWithdrawalPenalty[stakeType] * (BASIS_POINTS - completionRatio) / BASIS_POINTS;
-            
-            // Apply penalty
-            penalty = (hskToReturn * adjustedPenalty) / BASIS_POINTS;
+            // 直接按照比例全扣， 不需要计算 !!!
+            penalty = (hskToReturn * earlyWithdrawalPenalty[stakeType]) / BASIS_POINTS;
+
             hskToReturn -= penalty;
             
             // Add penalty to reserved rewards
