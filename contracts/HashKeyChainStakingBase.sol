@@ -204,7 +204,10 @@ abstract contract HashKeyChainStakingBase is
         if (totalShares == 0) {
             return _sharesAmount; // Initial 1:1 exchange rate
         }
-        return (_sharesAmount * totalPooledHSK) / totalShares;
+        uint256 totalRewards = hskPerBlock * (block.number - startBlock);
+        uint256 unClaimedRewards = totalRewards - totalPaidRewards;
+
+        return (_sharesAmount * totalPooledHSK + unClaimedRewards) / totalShares;
     }
 
     /**

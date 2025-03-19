@@ -148,7 +148,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Mark stake as withdrawn
         lockedStake.withdrawn = true;
         
-        // 计算原始质押金额和奖励部分
+        // 计算原始质押金额和奖励部分烦烦烦方法
         uint256 originalStake = lockedStake.hskAmount;
         uint256 rewardPart = 0;
         
@@ -160,8 +160,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             originalStake = hskToReturn;
         }
         
-        // 更新总质押金额，只减去原始质押部分
-        totalPooledHSK -= originalStake;
+        totalPooledHSK = totalPooledHSK - hskToReturn - penalty;
         
         // 如果有奖励部分，从已支付奖励中减去
         if (rewardPart > 0) {
