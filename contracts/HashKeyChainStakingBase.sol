@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./HashKeyChainStakingEvents.sol";
@@ -27,7 +27,7 @@ abstract contract HashKeyChainStakingBase is
     ) internal onlyInitializing {
         __Pausable_init();
         __ReentrancyGuard_init();
-        __Ownable_init(msg.sender);
+        __Ownable_init();
         
         require(_hskPerBlock > 0, "HSK per block must be positive");
         require(_startBlock >= block.number, "Start block must be in the future");
@@ -70,10 +70,10 @@ abstract contract HashKeyChainStakingBase is
         annualRewardsBudget = _hskPerBlock * blocksPerYear;
         
         // Set early withdrawal penalties
-        earlyWithdrawalPenalty[StakeType.FIXED_30_DAYS] = 10;     // 0.1%
-        earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 10;     // 0.1%
-        earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 10;    // 0.1%
-        earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 10;    // 0.1%
+        earlyWithdrawalPenalty[StakeType.FIXED_30_DAYS] = 1;     // 0.01%
+        earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 1;     // 0.01%
+        earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 1;    // 0.01%
+        earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 1;    // 0.01%
         
         // Set bonus for different staking periods
         stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
@@ -163,6 +163,7 @@ abstract contract HashKeyChainStakingBase is
         
         // 检查合约是否有足够的奖励资金
         // 使用annualRewardsBudget来计算可用奖励，而不是依赖实际合约余额
+        // !!! 这里需要修改  不需要检查，定期打钱进去
         uint256 availableRewards = reservedRewards;
         
         if (availableRewards >= totalReward) {
@@ -203,7 +204,10 @@ abstract contract HashKeyChainStakingBase is
         if (totalShares == 0) {
             return _sharesAmount; // Initial 1:1 exchange rate
         }
-        return (_sharesAmount * totalPooledHSK) / totalShares;
+        uint256 totalRewards = hskPerBlock * (block.number - startBlock);
+        uint256 unClaimedRewards = totalRewards - totalPaidRewards;
+
+        return (_sharesAmount * totalPooledHSK + unClaimedRewards) / totalShares;
     }
 
     /**
@@ -296,13 +300,13 @@ abstract contract HashKeyChainStakingBase is
         // Get maximum APR for corresponding stake type
         uint256 maxTypeApr;
         if (_stakeType == StakeType.FIXED_30_DAYS) {
-            maxTypeApr = 120; // 1.2%
+            maxTypeApr = 360; // 3.6%
         } else if (_stakeType == StakeType.FIXED_90_DAYS) {
-            maxTypeApr = 350; // 3.5%
+            maxTypeApr = 1000; // 10%
         } else if (_stakeType == StakeType.FIXED_180_DAYS) {
-            maxTypeApr = 650; // 6.5%
-        } else {
-            maxTypeApr = 1200; // 12.0%
+            maxTypeApr = 1800; // 18%
+        } else  if (_stakeType == StakeType.FIXED_365_DAYS){
+            maxTypeApr = 3600; // 36%
         }
         
         // Ensure not exceeding this type's maximum APR

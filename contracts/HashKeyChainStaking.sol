@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/PausableUpgradeable.sol";
+import "@openzeppelin/contracts-upgradeable/security/ReentrancyGuardUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./StHSK.sol";
@@ -160,10 +160,10 @@ contract HashKeyChainStaking is
         estimatedAPRs[2] = getCurrentAPR(_stakeAmount, StakeType.FIXED_180_DAYS);
         estimatedAPRs[3] = getCurrentAPR(_stakeAmount, StakeType.FIXED_365_DAYS);
         
-        maxAPRs[0] = 120;   // MAX_APR_30_DAYS
-        maxAPRs[1] = 350;   // MAX_APR_90_DAYS 
-        maxAPRs[2] = 650;   // MAX_APR_180_DAYS
-        maxAPRs[3] = 1200;  // MAX_APR_365_DAYS
+        maxAPRs[0] = 360;   // MAX_APR_30_DAYS - 修改为3.6%
+        maxAPRs[1] = 1000;  // MAX_APR_90_DAYS - 修改为10% 
+        maxAPRs[2] = 1800;  // MAX_APR_180_DAYS - 修改为18%
+        maxAPRs[3] = 3600;  // MAX_APR_365_DAYS - 修改为36%
         
         return (estimatedAPRs, maxAPRs);
     }
@@ -193,11 +193,11 @@ contract HashKeyChainStaking is
         baseBonus[2] = stakingBonus[StakeType.FIXED_180_DAYS];
         baseBonus[3] = stakingBonus[StakeType.FIXED_365_DAYS];
         
-        // Maximum possible APRs
-        maxPossibleAPRs[0] = 120;   // MAX_APR_30_DAYS
-        maxPossibleAPRs[1] = 350;   // MAX_APR_90_DAYS 
-        maxPossibleAPRs[2] = 650;   // MAX_APR_180_DAYS
-        maxPossibleAPRs[3] = 1200;  // MAX_APR_365_DAYS
+        // Maximum possible APRs - 更新为新的最大APR值
+        maxPossibleAPRs[0] = 360;   // MAX_APR_30_DAYS - 3.6%
+        maxPossibleAPRs[1] = 1000;  // MAX_APR_90_DAYS - 10%
+        maxPossibleAPRs[2] = 1800;  // MAX_APR_180_DAYS - 18%
+        maxPossibleAPRs[3] = 3600;  // MAX_APR_365_DAYS - 36%
         
         // Calculate current estimated APRs
         currentAPRs[0] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_30_DAYS);
@@ -228,16 +228,16 @@ contract HashKeyChainStaking is
             
             // Cap at MAX_APR_365_DAYS
             if (baseApr > MAX_APR) {
-                baseApr = MAX_APR > 1200 ? 1200 : MAX_APR; // MAX_APR_365_DAYS = 1200
+                baseApr = MAX_APR > 3600 ? 3600 : MAX_APR; // MAX_APR_365_DAYS = 3600
             }
             
             // Minimum APR for 30-day lock
-            minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 120 ? 
-                120 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
+            minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 360 ? 
+                360 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
             
             // Maximum APR for 365-day lock
-            maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 1200 ? 
-                1200 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
+            maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 3600 ? 
+                3600 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
             
             return (baseApr, minApr, maxApr);
         }
@@ -246,12 +246,12 @@ contract HashKeyChainStaking is
         baseApr = (yearlyRewards * BASIS_POINTS) / newTotal;
         
         // Minimum APR for 30-day lock
-        minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 120 ? 
-            120 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
+        minApr = (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]) > 360 ? 
+            360 : (baseApr + stakingBonus[StakeType.FIXED_30_DAYS]);
         
         // Maximum APR for 365-day lock
-        maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 1200 ? 
-            1200 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
+        maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 3600 ? 
+            3600 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
         
         return (baseApr, minApr, maxApr);
     }
