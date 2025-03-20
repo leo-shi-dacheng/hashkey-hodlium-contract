@@ -5,17 +5,17 @@ const { time, mine } = require("@nomicfoundation/hardhat-network-helpers");
 const { Console } = require("console");
 
 describe("HashKeyChain Staking - Flexible Staking", function () {
-  let staking, stHSK, owner, addr1, addr2;
+  let staking, stHSK, owner, addr1, addr2, addr3;
   const minStakeAmount = ethers.parseEther("100");
   const FLEXIBLE = 4; // 假设 StakeType.FLEXIBLE 的枚举值为 4
 
   before(async function () {
-    [owner, addr1, addr2] = await ethers.getSigners();
+    [owner, addr1, addr2, addr3] = await ethers.getSigners();
 
     // 部署合约
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
     staking = await upgrades.deployProxy(HashKeyChainStaking, [
-      ethers.parseEther("0.01"), // hskPerBlock
+      ethers.parseEther("0.0001"), // hskPerBlock
       (await ethers.provider.getBlockNumber()) + 10, // startBlock
       ethers.parseEther("0.1"),  // maxHskPerBlock
       minStakeAmount,
@@ -91,7 +91,8 @@ describe("HashKeyChain Staking - Flexible Staking", function () {
     });
 
     it("Should correctly calculate rewards for flexible staking", async function () {
-        await staking.connect(addr1).stakeFlexible({ value: ethers.parseEther("1000") });
+        await staking.connect(addr1).stakeLocked(0, { value: ethers.parseEther("9999") });
+        await staking.connect(addr3).stakeLocked(0, { value: ethers.parseEther("9999") });
         // addr2 进行质押
       const stakeAmount = ethers.parseEther("100");
       const tx = await staking.connect(addr2).stakeFlexible({ value: stakeAmount });
@@ -101,6 +102,7 @@ describe("HashKeyChain Staking - Flexible Staking", function () {
       const sharesAmount = ethers.toBigInt(stakeAmount) - 1000n; // 减去最小流动性
       const days_365 = 365 * 24 * 60 * 30;
       await mine(days_365); // 快进 10 个区块以累积奖励
+      // await time.increase(days_365 * 2);
 
       // 计算当前价值
       const currentValue = await staking.getHSKForShares(sharesAmount);
@@ -122,6 +124,9 @@ describe("HashKeyChain Staking - Flexible Staking", function () {
       const actualReward = hskToReturn - originalStake;
       console.log('actualReward', ethers.formatEther(actualReward.toString()));
       
+      const apr = await staking.getCurrentAPR(stakeAmount, FLEXIBLE);
+      console.log('apr', apr);
+
     //   expect(reward).to.be.closeTo(expectedReward, ethers.parseEther("0.001")); // 允许小误差
     });
 

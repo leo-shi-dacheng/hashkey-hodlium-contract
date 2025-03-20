@@ -321,13 +321,62 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
     }
 
     /**
+     * @notice 获取单笔灵活质押的当前收益
+     * @param _user 用户地址
+     * @param _stakeId 质押ID
+     * @return originalAmount 原始质押金额
+     * @return reward 当前累积的收益金额
+     * @return actualReward 考虑提前解锁惩罚后的实际收益（灵活质押无惩罚）
+     * @return totalValue 质押的当前总价值（本金+收益）
+     */
+    function getFlexibleStakeReward(address _user, uint256 _stakeId) external view returns (
+        uint256 originalAmount,
+        uint256 reward,
+        uint256 actualReward,
+        uint256 totalValue
+    ) {
+        // 获取质押信息
+        require(_stakeId < flexibleStakes[_user].length, "Invalid stake ID");
+        FlexibleStake storage userStake = flexibleStakes[_user][_stakeId];
+        
+        // 检查质押是否存在
+        require(userStake.sharesAmount > 0, "Stake amount is zero");
+        
+        // 如果质押已提取，返回零收益
+        if (userStake.status != FlexibleStakeStatus.STAKING) {
+            return (userStake.hskAmount, 0, 0, 0);
+        }
+        
+        // 计算当前HSK价值 - 复用getHSKForShares逻辑
+        uint256 currentHskValue = getHSKForShares(userStake.sharesAmount);
+        
+        // 原始质押金额
+        originalAmount = userStake.hskAmount;
+        
+        // 计算收益 = 当前价值 - 原始质押金额
+        if (currentHskValue > originalAmount) {
+            reward = currentHskValue - originalAmount;
+        } else {
+            reward = 0;
+        }
+        
+        // 灵活质押没有提前解锁惩罚，因此 actualReward = reward
+        actualReward = reward;
+        
+        // 计算总价值
+        totalValue = currentHskValue;
+        
+        return (originalAmount, reward, actualReward, totalValue);
+    }
+
+    /**
      * @dev Stake HSK with flexible terms
      */
     function stakeFlexible() external payable nonReentrant whenNotPaused {
         require(msg.value >= minStakeAmount, "Amount below minimum stake");
         require(block.timestamp < stakeEndTime, "Staking ended");
 
-        updateRewardPool();
+        updateRewardPool1();
 
         uint256 sharesAmount = getSharesForHSK(msg.value);
         require(sharesAmount > 0, "Shares amount cannot be zero");
@@ -366,19 +415,19 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         require(stake.status == FlexibleStakeStatus.STAKING, "Stake not active");
         require(block.number >= stake.stakeBlock + minWithdrawalRequestBlocks, "Too early to request withdrawal");
 
-        updateRewardPool();
+        updateRewardPool1();
 
         uint256 sharesToBurn = stake.sharesAmount;
         uint256 hskToReturn = getHSKForShares(sharesToBurn);
         
         uint256 totalShares = stHSK.totalSupply();
-        uint256 originalStakeRatio = (sharesToBurn * BASIS_POINTS) / totalShares;
+        uint256 originalStakeRatio = ( sharesToBurn * BASIS_POINTS) / totalShares;
         uint256 originalStake = (totalPooledHSK * originalStakeRatio) / BASIS_POINTS;
         if (originalStake > hskToReturn) {
             originalStake = hskToReturn;
         }
         uint256 rewardPart = hskToReturn - originalStake;
-        console.log('requestUnstakeFlexible: rewardPart', rewardPart);
+        // console.log('requestUnstakeFlexible: rewardPart', rewardPart);
 
         totalPooledHSK -= originalStake;
         if (rewardPart > 0) {
