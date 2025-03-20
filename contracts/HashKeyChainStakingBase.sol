@@ -50,7 +50,8 @@ abstract contract HashKeyChainStakingBase is
             totalSharesByStakeType[StakeType.FIXED_90_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_180_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_365_DAYS] = 0;
-            
+            totalSharesByStakeType[StakeType.FLEXIBLE] = 0; // Initialize for flexible staking
+
             // 初始化已支付奖励总量
             totalPaidRewards = 0;
         }
@@ -74,12 +75,18 @@ abstract contract HashKeyChainStakingBase is
         earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 1;     // 0.01%
         earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 1;    // 0.01%
         earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 1;    // 0.01%
-        
+        earlyWithdrawalPenalty[StakeType.FLEXIBLE] = 0;         // No penalty for flexible staking
+
         // Set bonus for different staking periods
         stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
         stakingBonus[StakeType.FIXED_90_DAYS] = 80;     // 0.8%
         stakingBonus[StakeType.FIXED_180_DAYS] = 200;   // 2.0%
         stakingBonus[StakeType.FIXED_365_DAYS] = 400;   // 4.0%
+        stakingBonus[StakeType.FLEXIBLE] = 0;          // No bonus for flexible staking
+
+        // Flexible staking specific variables
+        minWithdrawalRequestBlocks = 2;
+        withdrawalWaitingBlocks = 1209600 / _blockTime; // 14 days in blocks
         
         emit StakingContractUpgraded(version);
         emit HskPerBlockUpdated(0, _hskPerBlock);
@@ -125,7 +132,7 @@ abstract contract HashKeyChainStakingBase is
             uint256 bonusReward90Days = 0;
             uint256 bonusReward180Days = 0;
             uint256 bonusReward365Days = 0;
-            
+            uint256 bonusRewardFlexible = 0;
             // 只有当该类型有质押时才计算奖励
             if (totalSharesByStakeType[StakeType.FIXED_30_DAYS] > 0) {
                 // 计算该类型质押占总质押的比例
@@ -153,9 +160,15 @@ abstract contract HashKeyChainStakingBase is
                 uint256 baseReward365Days = (hskReward * shareRatio365Days) / PRECISION_FACTOR;
                 bonusReward365Days = (baseReward365Days * stakingBonus[StakeType.FIXED_365_DAYS]) / BASIS_POINTS;
             }
+
+            if (totalSharesByStakeType[StakeType.FLEXIBLE] > 0) {
+                uint256 shareRatioFlexible = (totalSharesByStakeType[StakeType.FLEXIBLE] * PRECISION_FACTOR) / totalShares;
+                uint256 baseRewardFlexible = (hskReward * shareRatioFlexible) / PRECISION_FACTOR;
+                bonusRewardFlexible = (baseRewardFlexible * stakingBonus[StakeType.FLEXIBLE]) / BASIS_POINTS;
+            }
             
             // 计算总的额外奖励
-            additionalBonusRewards = bonusReward30Days + bonusReward90Days + bonusReward180Days + bonusReward365Days;
+            additionalBonusRewards = bonusReward30Days + bonusReward90Days + bonusReward180Days + bonusReward365Days + bonusRewardFlexible;
         }
         
         // 总奖励 = 基础奖励 + 额外的锁定期奖励

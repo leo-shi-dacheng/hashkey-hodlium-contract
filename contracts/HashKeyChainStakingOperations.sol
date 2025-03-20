@@ -7,6 +7,8 @@ import "./HashKeyChainStakingBase.sol";
  * @title HashKeyChainStakingOperations
  * @dev Implementation of staking operations, using a share-based model
  */
+import "hardhat/console.sol";
+
 abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
     /**
      * @dev Regular staking (unlocked), directly receives stHSK
@@ -79,6 +81,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         else if (_stakeType == StakeType.FIXED_90_DAYS) lockDuration = 90 days;
         else if (_stakeType == StakeType.FIXED_180_DAYS) lockDuration = 180 days;
         else if (_stakeType == StakeType.FIXED_365_DAYS) lockDuration = 365 days;
+        else if (_stakeType == StakeType.FLEXIBLE) lockDuration = 0 days;
         else revert("Invalid stake type");
         
         // Create locked stake record
@@ -130,7 +133,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         if (lockedStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
         else if (lockedStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
         else if (lockedStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
-        else stakeType = StakeType.FIXED_365_DAYS;
+        else if (lockedStake.lockDuration == 365 days) stakeType = StakeType.FIXED_365_DAYS;
+        else stakeType = StakeType.FLEXIBLE;
         
         // 更新该锁定期类型的质押总量
         totalSharesByStakeType[stakeType] -= sharesToBurn;
@@ -295,7 +299,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             if (userStake.lockDuration == 30 days) stakeType = StakeType.FIXED_30_DAYS;
             else if (userStake.lockDuration == 90 days) stakeType = StakeType.FIXED_90_DAYS;
             else if (userStake.lockDuration == 180 days) stakeType = StakeType.FIXED_180_DAYS;
-            else stakeType = StakeType.FIXED_365_DAYS;
+            else if (userStake.lockDuration == 365 days) stakeType = StakeType.FIXED_365_DAYS;
+            else stakeType = StakeType.FLEXIBLE;
             
             // 计算已经过的锁定期比例
             uint256 elapsedTime = block.timestamp - (userStake.lockEndTime - userStake.lockDuration);
@@ -313,5 +318,109 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         totalValue = currentHskValue;
         
         return (originalAmount, reward, actualReward, totalValue);
+    }
+
+    /**
+     * @dev Stake HSK with flexible terms
+     */
+    function stakeFlexible() external payable nonReentrant whenNotPaused {
+        require(msg.value >= minStakeAmount, "Amount below minimum stake");
+        require(block.timestamp < stakeEndTime, "Staking ended");
+
+        updateRewardPool();
+
+        uint256 sharesAmount = getSharesForHSK(msg.value);
+        require(sharesAmount > 0, "Shares amount cannot be zero");
+
+        if (!initialLiquidityMinted) {
+            require(sharesAmount >= MINIMUM_LIQUIDITY, "Initial stake too small");
+            initialLiquidityMinted = true;
+            stHSK.mint(0x000000000000000000000000000000000000dEaD, MINIMUM_LIQUIDITY);
+            sharesAmount -= MINIMUM_LIQUIDITY;
+        }
+
+        totalPooledHSK += msg.value;
+        totalSharesByStakeType[StakeType.FLEXIBLE] += sharesAmount;
+
+        stHSK.mint(msg.sender, sharesAmount);
+
+        flexibleStakes[msg.sender].push(FlexibleStake({
+            sharesAmount: sharesAmount,
+            hskAmount: msg.value,
+            stakeBlock: block.number,
+            status: FlexibleStakeStatus.STAKING
+        }));
+
+        uint256 stakeId = flexibleStakes[msg.sender].length - 1;
+        emit Stake(msg.sender, msg.value, sharesAmount, StakeType.FLEXIBLE, 0, stakeId);
+    }
+
+     /**
+     * @dev Request to unstake a flexible stake
+     * @param _stakeId The ID of the stake to unstake
+     */
+    function requestUnstakeFlexible(uint256 _stakeId) external nonReentrant {
+        require(_stakeId < flexibleStakes[msg.sender].length, "Invalid stake ID");
+        FlexibleStake storage stake = flexibleStakes[msg.sender][_stakeId];
+
+        require(stake.status == FlexibleStakeStatus.STAKING, "Stake not active");
+        require(block.number >= stake.stakeBlock + minWithdrawalRequestBlocks, "Too early to request withdrawal");
+
+        updateRewardPool();
+
+        uint256 sharesToBurn = stake.sharesAmount;
+        uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        
+        uint256 totalShares = stHSK.totalSupply();
+        uint256 originalStakeRatio = (sharesToBurn * BASIS_POINTS) / totalShares;
+        uint256 originalStake = (totalPooledHSK * originalStakeRatio) / BASIS_POINTS;
+        if (originalStake > hskToReturn) {
+            originalStake = hskToReturn;
+        }
+        uint256 rewardPart = hskToReturn - originalStake;
+        console.log('requestUnstakeFlexible: rewardPart', rewardPart);
+
+        totalPooledHSK -= originalStake;
+        if (rewardPart > 0) {
+            if (rewardPart > totalPaidRewards) {
+                rewardPart = totalPaidRewards;
+            }
+            totalPaidRewards -= rewardPart;
+            totalPooledHSK -= rewardPart;
+        }
+
+        totalSharesByStakeType[StakeType.FLEXIBLE] -= sharesToBurn;
+
+        stHSK.burn(msg.sender, sharesToBurn);
+
+        uint256 claimableBlock = block.number + withdrawalWaitingBlocks;
+        pendingWithdrawals[msg.sender].push(PendingWithdrawal({
+            hskAmount: hskToReturn,
+            claimableBlock: claimableBlock,
+            claimed: false
+        }));
+
+        stake.status = FlexibleStakeStatus.WITHDRAWN;
+
+        emit RequestUnstakeFlexible(msg.sender, _stakeId, hskToReturn, claimableBlock);
+    }
+
+    /**
+     * @dev Claim a pending withdrawal
+     * @param _withdrawalId The ID of the withdrawal to claim
+     */
+    function claimWithdrawal(uint256 _withdrawalId) external nonReentrant {
+        require(_withdrawalId < pendingWithdrawals[msg.sender].length, "Invalid withdrawal ID");
+        PendingWithdrawal storage withdrawal = pendingWithdrawals[msg.sender][_withdrawalId];
+
+        require(!withdrawal.claimed, "Withdrawal already claimed");
+        require(block.number >= withdrawal.claimableBlock, "Too early to claim");
+
+        withdrawal.claimed = true;
+
+        bool success = safeHskTransfer(payable(msg.sender), withdrawal.hskAmount);
+        require(success, "HSK transfer failed");
+
+        emit WithdrawalClaimed(msg.sender, _withdrawalId, withdrawal.hskAmount);
     }
 }

@@ -8,6 +8,24 @@ import "./StHSK.sol";
  * @dev Modified storage contract for share-based model
  */
 abstract contract HashKeyChainStakingStorage {
+    // Flexible staking status enum
+    enum FlexibleStakeStatus { STAKING, PENDING_WITHDRAWAL, WITHDRAWN }
+
+    // Flexible stake structure
+    struct FlexibleStake {
+        uint256 sharesAmount;    // Amount of stHSK shares
+        uint256 hskAmount;       // Amount of HSK staked
+        uint256 stakeBlock;      // Block number when staked
+        FlexibleStakeStatus status; // Current status of the stake
+    }
+
+    // Pending withdrawal structure
+    struct PendingWithdrawal {
+        uint256 hskAmount;       // Amount of HSK to withdraw
+        uint256 claimableBlock;  // Block when withdrawal can be claimed
+        bool claimed;            // Whether the withdrawal has been claimed
+    }
+    
     // Locked stake information
     struct LockedStake {
         uint256 sharesAmount;       // Amount of locked shares
@@ -17,8 +35,18 @@ abstract contract HashKeyChainStakingStorage {
         bool withdrawn;             // Whether withdrawn
     }
 
+     // Mapping of user addresses to their flexible stakes
+    mapping(address => FlexibleStake[]) public flexibleStakes;
+    // Mapping of user addresses to their pending withdrawals
+    mapping(address => PendingWithdrawal[]) public pendingWithdrawals;
+
+    // Minimum blocks before a withdrawal can be requested
+    uint256 public minWithdrawalRequestBlocks;
+    // Blocks to wait after requesting withdrawal (2 weeks)
+    uint256 public withdrawalWaitingBlocks;
+
     // Stake types
-    enum StakeType { FIXED_30_DAYS, FIXED_90_DAYS, FIXED_180_DAYS, FIXED_365_DAYS }
+    enum StakeType { FIXED_30_DAYS, FIXED_90_DAYS, FIXED_180_DAYS, FIXED_365_DAYS, FLEXIBLE }
 
     // Constants
     uint256 internal constant PRECISION_FACTOR = 1e18;
