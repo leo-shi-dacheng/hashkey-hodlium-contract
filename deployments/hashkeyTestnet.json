@@ -1,8 +1,8 @@
 {
   "network": "hashkeyTestnet",
-  "implementation": "0x401354073D45823F6e387C0b83323935e51E424D",
-  "proxyAdmin": "0x17550ad669cceB67261843F420a796A3c1e28A40",
-  "proxy": "0x6447265beCdEC63d778f5FE6D68fe99247F4d380",
+  "implementation": "0xa0d24dd9414d53527DcdD0B35aE5588727608a5b",
+  "proxyAdmin": "0x024b8939F22963bbd44a49655aF41b14d01abeb3",
+  "proxy": "0x4818006113B89bc57aB5a81767E0977b0E30a8D6",
   "deployer": "0x6ca0Df2886B55A3099bC70994b9aA8f29B455d50",
-  "timestamp": "2025-03-20T12:26:22.371Z"
+  "timestamp": "2025-03-21T00:18:56.481Z"
 }
