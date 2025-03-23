@@ -50,7 +50,8 @@ abstract contract HashKeyChainStakingBase is
             totalSharesByStakeType[StakeType.FIXED_90_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_180_DAYS] = 0;
             totalSharesByStakeType[StakeType.FIXED_365_DAYS] = 0;
-            
+            totalSharesByStakeType[StakeType.FLEXIBLE] = 0; // Initialize for flexible staking
+
             // 初始化已支付奖励总量
             totalPaidRewards = 0;
         }
@@ -74,12 +75,18 @@ abstract contract HashKeyChainStakingBase is
         earlyWithdrawalPenalty[StakeType.FIXED_90_DAYS] = 1;     // 0.01%
         earlyWithdrawalPenalty[StakeType.FIXED_180_DAYS] = 1;    // 0.01%
         earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS] = 1;    // 0.01%
-        
+        earlyWithdrawalPenalty[StakeType.FLEXIBLE] = 0;         // No penalty for flexible staking
+
         // Set bonus for different staking periods
         stakingBonus[StakeType.FIXED_30_DAYS] = 0;      // 0%
         stakingBonus[StakeType.FIXED_90_DAYS] = 80;     // 0.8%
         stakingBonus[StakeType.FIXED_180_DAYS] = 200;   // 2.0%
         stakingBonus[StakeType.FIXED_365_DAYS] = 400;   // 4.0%
+        stakingBonus[StakeType.FLEXIBLE] = 0;          // No bonus for flexible staking
+
+        // Flexible staking specific variables
+        minWithdrawalRequestBlocks = 2;
+        withdrawalWaitingBlocks = 1209600 / _blockTime; // 14 days in blocks
         
         emit StakingContractUpgraded(version);
         emit HskPerBlockUpdated(0, _hskPerBlock);
@@ -102,7 +109,7 @@ abstract contract HashKeyChainStakingBase is
         
         uint256 multiplier = block.number - lastRewardBlock;
         uint256 hskReward = multiplier * hskPerBlock;
-        
+
         // Calculate and limit APR using configurable block time
         // SECONDS_PER_YEAR is 365 days (31,536,000 seconds)
         // Explicitly calculate blocks per year based on the configured block time
@@ -125,7 +132,6 @@ abstract contract HashKeyChainStakingBase is
             uint256 bonusReward90Days = 0;
             uint256 bonusReward180Days = 0;
             uint256 bonusReward365Days = 0;
-            
             // 只有当该类型有质押时才计算奖励
             if (totalSharesByStakeType[StakeType.FIXED_30_DAYS] > 0) {
                 // 计算该类型质押占总质押的比例
@@ -153,7 +159,7 @@ abstract contract HashKeyChainStakingBase is
                 uint256 baseReward365Days = (hskReward * shareRatio365Days) / PRECISION_FACTOR;
                 bonusReward365Days = (baseReward365Days * stakingBonus[StakeType.FIXED_365_DAYS]) / BASIS_POINTS;
             }
-            
+            // bonusRewardFlexible 不计算 直接为0
             // 计算总的额外奖励
             additionalBonusRewards = bonusReward30Days + bonusReward90Days + bonusReward180Days + bonusReward365Days;
         }
@@ -172,7 +178,6 @@ abstract contract HashKeyChainStakingBase is
             
             // 更新已支付的奖励总量
             totalPaidRewards += totalReward;
-            
             // Update exchange rate
             emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
         } else {
@@ -190,6 +195,90 @@ abstract contract HashKeyChainStakingBase is
             }
             emit InsufficientRewards(totalReward, reservedRewards);
         }
+        
+        lastRewardBlock = block.number;
+    }
+
+    function updateRewardPool1() public {
+        if (block.number <= lastRewardBlock) {
+            return;
+        }
+        
+        if (totalPooledHSK == 0) {
+            lastRewardBlock = block.number;
+            return;
+        }
+        
+        uint256 multiplier = block.number - lastRewardBlock;
+        uint256 hskReward = multiplier * hskPerBlock;
+
+        // Calculate and limit APR using configurable block time
+        // SECONDS_PER_YEAR is 365 days (31,536,000 seconds)
+        // Explicitly calculate blocks per year based on the configured block time
+        uint256 blocksPerYear = SECONDS_PER_YEAR / blockTime;  // 31,536,000 / blockTime
+        uint256 annualReward = hskPerBlock * blocksPerYear;
+        uint256 currentAPR = (annualReward * BASIS_POINTS) / totalPooledHSK;
+        if (currentAPR > MAX_APR) {
+            hskReward = (totalPooledHSK * MAX_APR * multiplier) / (BASIS_POINTS * blocksPerYear);
+        }
+        
+        // 计算额外的锁定期奖励
+        uint256 additionalBonusRewards = 0;
+        
+        // 获取总shares数量
+        uint256 totalShares = stHSK.totalSupply();
+        
+        if (totalShares > 0) {
+            // 计算每种锁定期类型的额外奖励
+            uint256 bonusReward30Days = 0;
+            uint256 bonusReward90Days = 0;
+            uint256 bonusReward180Days = 0;
+            uint256 bonusReward365Days = 0;
+            // 只有当该类型有质押时才计算奖励
+            if (totalSharesByStakeType[StakeType.FIXED_30_DAYS] > 0) {
+                // 计算该类型质押占总质押的比例
+                uint256 shareRatio30Days = (totalSharesByStakeType[StakeType.FIXED_30_DAYS] * PRECISION_FACTOR) / totalShares;
+                // 计算该类型的基础奖励
+                uint256 baseReward30Days = (hskReward * shareRatio30Days) / PRECISION_FACTOR;
+                // 计算该类型的额外奖励
+                bonusReward30Days = (baseReward30Days * stakingBonus[StakeType.FIXED_30_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_90_DAYS] > 0) {
+                uint256 shareRatio90Days = (totalSharesByStakeType[StakeType.FIXED_90_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward90Days = (hskReward * shareRatio90Days) / PRECISION_FACTOR;
+                bonusReward90Days = (baseReward90Days * stakingBonus[StakeType.FIXED_90_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_180_DAYS] > 0) {
+                uint256 shareRatio180Days = (totalSharesByStakeType[StakeType.FIXED_180_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward180Days = (hskReward * shareRatio180Days) / PRECISION_FACTOR;
+                bonusReward180Days = (baseReward180Days * stakingBonus[StakeType.FIXED_180_DAYS]) / BASIS_POINTS;
+            }
+            
+            if (totalSharesByStakeType[StakeType.FIXED_365_DAYS] > 0) {
+                uint256 shareRatio365Days = (totalSharesByStakeType[StakeType.FIXED_365_DAYS] * PRECISION_FACTOR) / totalShares;
+                uint256 baseReward365Days = (hskReward * shareRatio365Days) / PRECISION_FACTOR;
+                bonusReward365Days = (baseReward365Days * stakingBonus[StakeType.FIXED_365_DAYS]) / BASIS_POINTS;
+            }
+            // bonusRewardFlexible 不计算 直接为0
+            // 计算总的额外奖励
+            additionalBonusRewards = bonusReward30Days + bonusReward90Days + bonusReward180Days + bonusReward365Days;
+        }
+        
+        // 总奖励 = 基础奖励 + 额外的锁定期奖励
+        uint256 totalReward = hskReward + additionalBonusRewards;
+        
+        // 检查合约是否有足够的奖励资金
+        // 使用annualRewardsBudget来计算可用奖励，而不是依赖实际合约余额
+        // !!! 这里需要修改  不需要检查，定期打钱进去
+        uint256 availableRewards = reservedRewards;
+        
+         // 直接增加奖励，不检查 reservedRewards
+        totalPooledHSK += totalReward;
+        totalPaidRewards += totalReward;
+
+        emit ExchangeRateUpdated(totalPooledHSK, stHSK.totalSupply(), getHSKForShares(PRECISION_FACTOR));
         
         lastRewardBlock = block.number;
     }
@@ -307,6 +396,8 @@ abstract contract HashKeyChainStakingBase is
             maxTypeApr = 1800; // 18%
         } else  if (_stakeType == StakeType.FIXED_365_DAYS){
             maxTypeApr = 3600; // 36%
+        } else if (_stakeType == StakeType.FLEXIBLE) {
+            maxTypeApr = 180; // 1.8%
         }
         
         // Ensure not exceeding this type's maximum APR

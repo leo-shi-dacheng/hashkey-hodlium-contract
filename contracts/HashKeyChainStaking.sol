@@ -152,19 +152,21 @@ contract HashKeyChainStaking is
      * @param _stakeAmount Simulated staking amount
      */
     function getAllStakingAPRs(uint256 _stakeAmount) external view returns (
-        uint256[4] memory estimatedAPRs,
-        uint256[4] memory maxAPRs
+        uint256[5] memory estimatedAPRs,
+        uint256[5] memory maxAPRs
     ) {
         estimatedAPRs[0] = getCurrentAPR(_stakeAmount, StakeType.FIXED_30_DAYS);
         estimatedAPRs[1] = getCurrentAPR(_stakeAmount, StakeType.FIXED_90_DAYS);
         estimatedAPRs[2] = getCurrentAPR(_stakeAmount, StakeType.FIXED_180_DAYS);
         estimatedAPRs[3] = getCurrentAPR(_stakeAmount, StakeType.FIXED_365_DAYS);
+        estimatedAPRs[4] = getCurrentAPR(_stakeAmount, StakeType.FLEXIBLE);
         
         maxAPRs[0] = 360;   // MAX_APR_30_DAYS - 修改为3.6%
         maxAPRs[1] = 1000;  // MAX_APR_90_DAYS - 修改为10% 
         maxAPRs[2] = 1800;  // MAX_APR_180_DAYS - 修改为18%
         maxAPRs[3] = 3600;  // MAX_APR_365_DAYS - 修改为36%
-        
+        maxAPRs[4] = 180;   // MAX_APR_FLEXIBLE - 修改为1.8%
+
         return (estimatedAPRs, maxAPRs);
     }
 
@@ -174,10 +176,10 @@ contract HashKeyChainStaking is
      */
     function getDetailedStakingStats(uint256 _simulatedStakeAmount) external view returns (
         uint256 totalStakedAmount,
-        uint256[4] memory durations,
-        uint256[4] memory currentAPRs,
-        uint256[4] memory maxPossibleAPRs,
-        uint256[4] memory baseBonus
+        uint256[5] memory durations,
+        uint256[5] memory currentAPRs,
+        uint256[5] memory maxPossibleAPRs,
+        uint256[5] memory baseBonus
     ) {
         totalStakedAmount = totalPooledHSK;
         
@@ -186,25 +188,28 @@ contract HashKeyChainStaking is
         durations[1] = 90 days;
         durations[2] = 180 days;
         durations[3] = 365 days;
-        
+        durations[4] = 0;
         // Base bonuses
         baseBonus[0] = stakingBonus[StakeType.FIXED_30_DAYS];
         baseBonus[1] = stakingBonus[StakeType.FIXED_90_DAYS];
         baseBonus[2] = stakingBonus[StakeType.FIXED_180_DAYS];
         baseBonus[3] = stakingBonus[StakeType.FIXED_365_DAYS];
+        baseBonus[4] = stakingBonus[StakeType.FLEXIBLE];
         
         // Maximum possible APRs - 更新为新的最大APR值
         maxPossibleAPRs[0] = 360;   // MAX_APR_30_DAYS - 3.6%
         maxPossibleAPRs[1] = 1000;  // MAX_APR_90_DAYS - 10%
         maxPossibleAPRs[2] = 1800;  // MAX_APR_180_DAYS - 18%
         maxPossibleAPRs[3] = 3600;  // MAX_APR_365_DAYS - 36%
+        maxPossibleAPRs[4] = 180;   // MAX_APR_FLEXIBLE - 1.8%
         
         // Calculate current estimated APRs
         currentAPRs[0] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_30_DAYS);
         currentAPRs[1] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_90_DAYS);
         currentAPRs[2] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_180_DAYS);
         currentAPRs[3] = getCurrentAPR(_simulatedStakeAmount, StakeType.FIXED_365_DAYS);
-        
+        currentAPRs[4] = getCurrentAPR(_simulatedStakeAmount, StakeType.FLEXIBLE);
+
         return (totalStakedAmount, durations, currentAPRs, maxPossibleAPRs, baseBonus);
     }
 
@@ -239,6 +244,7 @@ contract HashKeyChainStaking is
             maxApr = (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]) > 3600 ? 
                 3600 : (baseApr + stakingBonus[StakeType.FIXED_365_DAYS]);
             
+
             return (baseApr, minApr, maxApr);
         }
         

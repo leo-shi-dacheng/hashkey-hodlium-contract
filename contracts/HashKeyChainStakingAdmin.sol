@@ -136,4 +136,15 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
         
         emit BlockTimeUpdated(oldBlockTime, _newBlockTime);
     }
+
+    /**
+     * @dev Update withdrawal waiting blocks
+     * @param _newWithdrawalWaitingBlocks New withdrawal waiting blocks
+     */
+    function updateWithdrawalWaitingBlocks(uint256 _newWithdrawalWaitingBlocks) external onlyOwner {
+        require(_newWithdrawalWaitingBlocks > 0, "Withdrawal waiting blocks must be positive");
+        uint256 oldValue = withdrawalWaitingBlocks;
+        withdrawalWaitingBlocks = _newWithdrawalWaitingBlocks;
+        emit WithdrawalWaitingBlocksUpdated(oldValue, _newWithdrawalWaitingBlocks);
+    }
 }
