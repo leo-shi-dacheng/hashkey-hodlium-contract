@@ -275,21 +275,32 @@ Logical Informational Fixed ***
 
 ## HSS-1The unstake() function and claimReward() function do not function properly
 
-## not function properly
-
 ```
 Category Severity Client Response Contributor
 ```
 ```
-Logical Medium Mitigated ***
+Logical Medium Fixed ***
 ```
 **Code Reference**
 
 ```
-code/contracts/libraries/StakingLib.sol#L32-L
-code/contracts/libraries/StakingLib.sol#L45-L
-code/contracts/libraries/StakingLib.sol#L
+contracts/HashKeyChainStakingOperations.sol#L227-L245
+contracts/HashKeyChainStakingOperations.sol#L284-L293
 ```
+
+**Updated Description**
+
+The time validation has been reworked to use direct timestamp comparisons with stored lock durations. The `unstakeLocked` function now:
+
+1. Uses `lockEndTime` stored per position
+2. Compares against `block.timestamp` directly
+3. Applies time tolerance through contract constants
+
+**Client Response**
+Fixed in v2 contract upgrade. Lock durations are now enforced through:
+- Position-specific `lockEndTime` storage
+- Direct timestamp comparisons
+- Fixed penalty calculations based on remaining lock duration
 ```
 32 : function calculateReward(
 33 : uint256 amount,
@@ -2594,6 +2605,51 @@ zero before proceeding with reward calculation.
 client response : Fixed.
 
 
+## HSS-21Flexible Staking Implementation Security
+
+```
+Category Severity Client Response Contributor
+```
+```
+Logical Informational Fixed ***
+```
+**Code Reference**
+```
+contracts/HashKeyChainStakingOperations.sol#L490-L538 (stakeFlexible)
+contracts/HashKeyChainStakingStorage.sol#L25-L35 (FlexibleStake struct)
+```
+
+**Key Security Features**
+1. Withdrawal Delay Mechanism:
+   - 14-day waiting period enforced through block counting
+   - Prevents instant withdrawals that could destabilize the pool
+2. Share-Based Accounting:
+   - Uses stHSK tokens for proportional ownership
+   - getHSKForShares() ensures fair value calculation
+3. Status Tracking:
+   - Three states: STAKING, PENDING_WITHDRAWAL, WITHDRAWN
+   - Prevents duplicate withdrawals
+4. Reward Separation:
+   - Flexible stakes receive lower base APR (1.8% vs 3.6%-36%)
+   - Explicitly excluded from bonus rewards in reward calculation
+
+**Added Security Checks**
+```solidity
+// In requestUnstakeFlexible()
+require(block.number >= stake.stakeBlock + minWithdrawalRequestBlocks, "Too early");
+updateRewardPool1(); // Ensures latest rewards are accounted for
+
+// In claimWithdrawal()
+require(block.number >= withdrawal.claimableBlock, "Too early");
+require(!withdrawal.claimed, "Already claimed");
+```
+
+**Audit Results**
+- ✅ Withdrawal delay properly implemented using block numbers
+- ✅ Flexible stakes isolated in separate accounting (totalSharesByStakeType[FLEXIBLE])
+- ✅ No overlap with locked stake reward calculations
+- ✅ Emergency withdrawal handles flexible stakes proportionally
+
 ## HSS-20Inconsistency between the addLockOption and updateLockOption functions
 
 ## kOption functions
@@ -2714,6 +2770,39 @@ emit LockOptionUpdated(index, newPeriod, newRate, block.timestamp);
 client response : Fixed. Fixed.
 
 
+## HSS-21Flexible Staking Implementation Security
+
+**Key Security Features**
+1. Withdrawal Delay Mechanism:
+   - 14-day waiting period enforced through block counting
+   - Prevents instant withdrawals that could destabilize the pool
+2. Share-Based Accounting:
+   - Uses stHSK tokens for proportional ownership
+   - getHSKForShares() ensures fair value calculation
+3. Status Tracking:
+   - Three states: STAKING, PENDING_WITHDRAWAL, WITHDRAWN
+   - Prevents duplicate withdrawals
+4. Reward Separation:
+   - Flexible stakes receive lower base APR (1.8% vs 3.6%-36%)
+   - Explicitly excluded from bonus rewards in reward calculation
+
+**Added Security Checks**
+```solidity
+// In requestUnstakeFlexible()
+require(block.number >= stake.stakeBlock + minWithdrawalRequestBlocks, "Too early");
+updateRewardPool1(); // Ensures latest rewards are accounted for
+
+// In claimWithdrawal()
+require(block.number >= withdrawal.claimableBlock, "Too early");
+require(!withdrawal.claimed, "Already claimed");
+```
+
+**Audit Results**
+- ✅ Withdrawal delay properly implemented using block numbers
+- ✅ Flexible stakes isolated in separate accounting (totalSharesByStakeType[FLEXIBLE])
+- ✅ No overlap with locked stake reward calculations
+- ✅ Emergency withdrawal handles flexible stakes proportionally
+
 ## Disclaimer
 
 This report is subject to the terms and conditions (including without limitation, description of services,
@@ -2759,5 +2848,3 @@ The assessment services provided by Secure3 is subject to dependencies and under
 The assessment reports could include false positives, false negatives, and other unpredictable results. The
 
 services may access, and depend upon, multiple layers of third-parties.
-
-
