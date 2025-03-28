@@ -147,7 +147,8 @@ contract HashKeyChainStaking is
         return (
             stake.sharesAmount,
             stake.hskAmount,
-            getHSKForShares(stake.sharesAmount),
+            // getHSKForShares(stake.sharesAmount),
+            getHSKForSharesByDuration(stake.sharesAmount, stake.lockDuration),
             stake.lockEndTime,
             stake.withdrawn,
             block.timestamp < stake.lockEndTime

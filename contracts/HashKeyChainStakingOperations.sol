@@ -108,8 +108,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Calculate penalty (if early withdrawal)
         uint256 penalty = 0;
         uint256 sharesToBurn = lockedStake.sharesAmount;
-        uint256 hskToReturn = getHSKForShares(sharesToBurn);
-
+        // uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        uint256 hskToReturn = getHSKForSharesByDuration(sharesToBurn, lockedStake.lockDuration);
         // 确定质押类型并更新该类型的质押总量
         StakeType stakeType;
         if (lockedStake.lockDuration == 30 days)
@@ -406,7 +406,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         updateRewardPool1();
 
         uint256 sharesToBurn = stake.sharesAmount;
-        uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        // uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        uint256 hskToReturn = getHSKForSharesByType(sharesToBurn, StakeType.FLEXIBLE);
 
         uint256 totalShares = stHSK.totalSupply();
         uint256 originalStakeRatio = (sharesToBurn * BASIS_POINTS) /
