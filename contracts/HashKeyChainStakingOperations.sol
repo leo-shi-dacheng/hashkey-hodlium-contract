@@ -7,7 +7,6 @@ import "./HashKeyChainStakingBase.sol";
  * @title HashKeyChainStakingOperations
  * @dev Implementation of staking operations, using a share-based model
  */
-import "hardhat/console.sol";
 
 abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
 
@@ -180,8 +179,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         );
         require(transferSuccess, "HSK transfer failed");
 
-        console.log('unstakeLocked: sharesToBurn', sharesToBurn);
-        console.log('unstakeLocked: hskToReturn', hskToReturn);
+
         emit Unstake(
             msg.sender,
             sharesToBurn,
@@ -418,7 +416,6 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             originalStake = hskToReturn;
         }
         uint256 rewardPart = hskToReturn - originalStake;
-        // console.log('requestUnstakeFlexible: rewardPart', rewardPart);
 
         totalPooledHSK -= originalStake;
         if (rewardPart > 0) {

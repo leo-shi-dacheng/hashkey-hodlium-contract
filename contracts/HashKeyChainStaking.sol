@@ -70,7 +70,7 @@ contract HashKeyChainStaking is
         maxAPRs[StakeType.FLEXIBLE] = 180;   // MAX_APR_FLEXIBLE - 1.8%
         
         // 更新版本号
-        version = 2;
+        version = 3;
         emit StakingContractUpgraded(version);
     }
 

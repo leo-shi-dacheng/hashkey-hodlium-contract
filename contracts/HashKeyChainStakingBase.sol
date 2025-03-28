@@ -7,7 +7,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "./HashKeyChainStakingEvents.sol";
 import "./StHSK.sol";
-import 'hardhat/console.sol';
 
 /**
  * @title HashKeyChainStakingBase
@@ -341,8 +340,6 @@ abstract contract HashKeyChainStakingBase is
         uint256 reward = _sharesAmount * unClaimedRewards * ratio / (totalSharesByStakeType[stakeType] * BASIS_POINTS);
         uint256 base =  (_sharesAmount * totalPooledHSK) / totalShares;
         uint256 maxReward = _sharesAmount * maxAPRs[stakeType] / BASIS_POINTS;
-        // console.log(reward, 'reward');
-        // console.log(maxReward, 'maxReward');
         if (reward > maxReward) {
             reward = maxReward;
         }

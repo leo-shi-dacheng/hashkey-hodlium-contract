@@ -21,7 +21,7 @@ describe("HashKeyChain Staking - Rewards", function () {
     // Deploy contract
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
     staking = await upgrades.deployProxy(HashKeyChainStaking, [
-      ethers.parseEther("0.0016"),
+      ethers.parseEther("0.03"),
       // ethers.parseEther("0.02"),
       (await ethers.provider.getBlockNumber()) + 10,
       ethers.parseEther("1"),
@@ -100,70 +100,68 @@ describe("HashKeyChain Staking - Rewards", function () {
     expect(await staking.totalPooledHSK()).to.be.gt(initialPooledHSK);
   });
   
-  // it("Should apply correct bonus rates for locked staking", async function() {
-  //   // // 1. 用户1进行质押
-  //   // const stakeAmount = ethers.parseEther("200");
-  //   // await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+  it("Should apply correct bonus rates for locked staking", async function() {
+    // // 1. 用户1进行质押
+    // const stakeAmount = ethers.parseEther("200");
+    // await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
 
-  //   // Get APRs, convert to numbers for easier comparison
-  //   const apr30Number = Number(await staking.getCurrentAPR(ethers.parseEther("1000"), FIXED_30_DAYS));
-  //   const apr90Number = Number(await staking.getCurrentAPR(ethers.parseEther("1000"), FIXED_90_DAYS));
+    // Get APRs, convert to numbers for easier comparison
+    const apr30Number = Number(await staking.getCurrentAPR(ethers.parseEther("1000"), FIXED_30_DAYS));
+    const apr90Number = Number(await staking.getCurrentAPR(ethers.parseEther("1000"), FIXED_90_DAYS));
     
-  //   // Verify longer lock periods have higher APR
-  //   expect(apr90Number).to.be.gt(apr30Number);
+    // Verify longer lock periods have higher APR
+    expect(apr90Number).to.be.gt(apr30Number);
     
-  //   // Get the baseline reward as reference
-  //   console.log(`APR 30 days: ${apr30Number}, APR 90 days: ${apr90Number}, Difference: ${apr90Number - apr30Number}`);
+    // Get the baseline reward as reference
+    console.log(`APR 30 days: ${apr30Number}, APR 90 days: ${apr90Number}, Difference: ${apr90Number - apr30Number}`);
     
-  //   // Can choose not to compare exact values, just ensure 90-day APR > 30-day APR
-  //   // If we must compare the difference, use more relaxed error range
-  //   const bonus90 = Number(await staking.stakingBonus(FIXED_90_DAYS));
-  //   console.log(`Bonus for 90 days: ${bonus90}`);
+    // Can choose not to compare exact values, just ensure 90-day APR > 30-day APR
+    // If we must compare the difference, use more relaxed error range
+    const bonus90 = Number(await staking.stakingBonus(FIXED_90_DAYS));
+    console.log(`Bonus for 90 days: ${bonus90}`);
     
-  //   // Don't do precise comparison, just ensure 90-day APR is higher than 30-day APR
-  // });
-  // it("Should 20 users unstake", async function() {
-  //   const stakeAmount = ethers.parseEther("9999");
+    // Don't do precise comparison, just ensure 90-day APR is higher than 30-day APR
+  });
+  it("Should 20 users unstake", async function() {
+    const stakeAmount = ethers.parseEther("9999");
     
-  //   // Stake for all 20 users with different lock periods
-  //   await staking.connect(addr1).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr2).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr3).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr4).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr5).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr6).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr7).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr8).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr9).stakeLocked(FLEXIBLE, { value: stakeAmount });
-  //   await staking.connect(addr10).stakeLocked(FLEXIBLE, { value: stakeAmount });
-  //   await staking.connect(addr11).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr12).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr13).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr14).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr15).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr16).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr17).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr18).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
-  //   await staking.connect(addr19).stakeLocked(FLEXIBLE, { value: stakeAmount });
+    // Stake for all 20 users with different lock periods
+    await staking.connect(addr1).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
+    await staking.connect(addr2).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
+    await staking.connect(addr3).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
+    await staking.connect(addr4).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
+    await staking.connect(addr5).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    await staking.connect(addr6).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    await staking.connect(addr7).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    await staking.connect(addr8).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    await staking.connect(addr9).stakeFlexible({ value: stakeAmount });
+    await staking.connect(addr10).stakeFlexible({ value: stakeAmount });
+    await staking.connect(addr11).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
+    await staking.connect(addr12).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
+    await staking.connect(addr13).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
+    await staking.connect(addr14).stakeLocked(FIXED_180_DAYS, { value: stakeAmount });
+    await staking.connect(addr15).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    await staking.connect(addr16).stakeLocked(FIXED_90_DAYS, { value: stakeAmount });
+    await staking.connect(addr17).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    await staking.connect(addr18).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
+    await staking.connect(addr19).stakeFlexible({ value: stakeAmount });
     
-  //   const initialPooledHSK = await staking.totalPooledHSK();
-    
-  //   // Fast forward time and mine blocks
-  //   await mine(365 * 24 * 60 * 30); // Mine blocks for 1 year
+    // Fast forward time and mine blocks
+    await mine(365 * 24 * 60 * 30); // Mine blocks for 1 year
   
-  //   // Force reward pool update
-  //   await staking.updateRewardPool();
+    // Force reward pool update
+    await staking.updateRewardPool();
 
-  //   // Check rewards for different staking periods
+    // Check rewards for different staking periods
 
 
-  //   const totalPooledHSK = await staking.totalPooledHSK();
-  //   const annualRewardsBudget = await staking.annualRewardsBudget();
+    const totalPooledHSK = await staking.totalPooledHSK();
+    const annualRewardsBudget = await staking.annualRewardsBudget();
     
-  //   const stakeReward365 = await staking.getStakeReward(addr1.address, 0);
-  //   console.log(`9999 hsk 365-day stake one year reward: ${ethers.formatEther(stakeReward365[1])} HSK`);
-  //   await staking.connect(addr1).unstakeLocked(0);
-  //   // Total pooled HSK should have increased
-  //   // expect(await staking.totalPooledHSK()).to.be.gt(initialPooledHSK);
-  // });
+    const stakeReward365 = await staking.getStakeReward(addr1.address, 0);
+    console.log(`9999 hsk 365-day stake one year reward: ${ethers.formatEther(stakeReward365[1])} HSK`);
+    await staking.connect(addr1).unstakeLocked(0);
+    // Total pooled HSK should have increased
+    // expect(await staking.totalPooledHSK()).to.be.gt(initialPooledHSK);
+  });
 }); 
