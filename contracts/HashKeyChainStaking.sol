@@ -9,6 +9,7 @@ import "./StHSK.sol";
 import "./HashKeyChainStakingOperations.sol";
 import "./HashKeyChainStakingAdmin.sol";
 import "./HashKeyChainStakingEmergency.sol";
+import 'hardhat/console.sol';
 
 /**
  * @title HashKeyChainStaking
@@ -60,7 +61,20 @@ contract HashKeyChainStaking is
         if (_annualBudget > 0) {
             annualRewardsBudget = _annualBudget;
         }
+
+      // / 获取最大APR值
+        uint256[5] memory maxAPRs;
+        maxAPRs[0] = 360;   // MAX_APR_30_DAYS - 3.6%
+        maxAPRs[1] = 1000;  // MAX_APR_90_DAYS - 10% 
+        maxAPRs[2] = 1800;  // MAX_APR_180_DAYS - 18%
+        maxAPRs[3] = 3600;  // MAX_APR_365_DAYS - 36%
+        maxAPRs[4] = 180;   // MAX_APR_FLEXIBLE - 1.8%
         
+        // 计算每种池的权重
+        for (uint256 i = 0; i < 5; i++) {
+            StakeType stakeType = StakeType(i);
+            poolWeight[stakeType] = maxAPRs[i];
+        }
         // 更新版本号
         version = 2;
         emit StakingContractUpgraded(version);
