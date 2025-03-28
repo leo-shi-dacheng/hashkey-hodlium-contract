@@ -107,5 +107,6 @@ abstract contract HashKeyChainStakingStorage {
     // 跟踪已支付的奖励总量
     uint256 public totalPaidRewards;
 
-    mapping(StakeType => uint256) public poolWeight;
+    // 最大收益率 也当作权重
+    mapping(StakeType => uint256) public maxAPRs;
 }

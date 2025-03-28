@@ -21,7 +21,8 @@ describe("HashKeyChain Staking - Rewards", function () {
     // Deploy contract
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
     staking = await upgrades.deployProxy(HashKeyChainStaking, [
-      ethers.parseEther("0.0017"),
+      ethers.parseEther("0.0016"),
+      // ethers.parseEther("0.02"),
       (await ethers.provider.getBlockNumber()) + 10,
       ethers.parseEther("1"),
       minStakeAmount,
@@ -69,8 +70,9 @@ describe("HashKeyChain Staking - Rewards", function () {
     
     const initialPooledHSK = await staking.totalPooledHSK();
     
+    const mineBlockNum = 365 * 24 * 60 * 30;
     // Fast forward time and mine blocks
-    await mine(365 * 24 * 60 * 30); // Mine blocks for 1 year
+    await mine(mineBlockNum); // Mine blocks for 1 year
   
     // Force reward pool update
     await staking.updateRewardPool();
@@ -83,7 +85,9 @@ describe("HashKeyChain Staking - Rewards", function () {
     const stakeRewardFlex = await staking.getFlexibleStakeReward(addr9.address, 0);
 
     const totalPooledHSK = await staking.totalPooledHSK();
-    const annualRewardsBudget = await staking.annualRewardsBudget();
+    const hskPerBlock = await staking.hskPerBlock();
+    console.log(hskPerBlock, 'hskPerBlock');
+    const annualRewardsBudget = hskPerBlock * BigInt(mineBlockNum);
     
     console.log(`总质押 ${ethers.formatEther(totalPooledHSK)} hsk,  一年总奖励为 ${ethers.formatEther(annualRewardsBudget)} hsk`);
     console.log(`9999 hsk 365-day stake one year reward: ${ethers.formatEther(stakeReward365[1])} HSK`);

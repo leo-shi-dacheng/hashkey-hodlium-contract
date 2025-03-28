@@ -289,7 +289,7 @@ abstract contract HashKeyChainStakingBase is
         uint256 totalWeightedShares = 0;
         for (uint256 i = 0; i < 5; i++) {
             StakeType currentType = StakeType(i);
-            totalWeightedShares += poolWeight[currentType] * totalSharesByStakeType[currentType];
+            totalWeightedShares += maxAPRs[currentType] * totalSharesByStakeType[currentType];
         }
         // 避免除以零
         if (totalWeightedShares == 0) {
@@ -297,7 +297,7 @@ abstract contract HashKeyChainStakingBase is
         }
         
         // 计算指定池的加权质押量
-        uint256 weightedShares = poolWeight[stakeType] * totalSharesByStakeType[stakeType];
+        uint256 weightedShares = maxAPRs[stakeType] * totalSharesByStakeType[stakeType];
         
         // 计算占总质押的百分比
         uint256 percentOfTotalShares = totalSharesByStakeType[stakeType] * BASIS_POINTS / totalWeightedShares;
@@ -337,9 +337,15 @@ abstract contract HashKeyChainStakingBase is
         uint256 unClaimedRewards = totalRewards - totalPaidRewards;
 
         uint256 ratio = calculateCorrectionFactor(stakeType);
+        //  reward 不能超 最大 APR
         uint256 reward = _sharesAmount * unClaimedRewards * ratio / (totalSharesByStakeType[stakeType] * BASIS_POINTS);
         uint256 base =  (_sharesAmount * totalPooledHSK) / totalShares;
-
+        uint256 maxReward = _sharesAmount * maxAPRs[stakeType] / BASIS_POINTS;
+        // console.log(reward, 'reward');
+        // console.log(maxReward, 'maxReward');
+        if (reward > maxReward) {
+            reward = maxReward;
+        }
         return reward + base;
     }
 
