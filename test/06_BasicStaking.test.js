@@ -5,6 +5,7 @@ const { upgrades } = require("hardhat");
 describe("Basic Staking Tests", function () {
   let staking, stHSK, owner, addr1;
   const minStakeAmount = ethers.parseEther("100");
+  const FIXED_30_DAYS = 0;
   
   before(async function () {
     [owner, addr1] = await ethers.getSigners();
@@ -48,15 +49,14 @@ describe("Basic Staking Tests", function () {
       addr1.sendTransaction({
         to: await staking.getAddress(),
         value: ethers.parseEther("50"),
-        data: staking.interface.encodeFunctionData("stake", [])
+        data: staking.interface.encodeFunctionData("stakeLocked", [FIXED_30_DAYS])
       })
     ).to.be.revertedWith("Amount below minimum stake");
   });
   
   it("Should accept valid stake", async function () {
-    const tx = await staking.connect(addr1).stake({
-      value: minStakeAmount
-    });
+    const tx = await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: minStakeAmount });
+
     await tx.wait();
     
     expect(await staking.totalPooledHSK()).to.equal(minStakeAmount);

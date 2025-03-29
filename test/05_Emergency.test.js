@@ -51,6 +51,11 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
       const mineBlockNum = 3 * 24 * 60 * 30;
       await mine(mineBlockNum);
 
+      // Get penalty rate
+      const penaltyRate = await staking.earlyWithdrawalPenalty(FIXED_30_DAYS);
+      const expectedPenalty = (stakeAmount * BigInt(penaltyRate)) / BigInt(10000); // Convert basis points to actual amount
+      const expectedReturn = stakeAmount - expectedPenalty;
+
       // Emergency withdraw
       const tx = await staking.connect(addr1).emergencyWithdraw();
       const receipt = await tx.wait();
@@ -58,8 +63,8 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
       
       const balanceAfter = await ethers.provider.getBalance(addr1.address);
 
-      expect(balanceAfter - balanceBefore  + gasUsed).to.be.closeTo(
-        stakeAmount, 
+      expect(balanceAfter - balanceBefore + gasUsed).to.be.closeTo(
+        expectedReturn, 
         ethers.parseEther("1")
       );
     });
@@ -73,6 +78,16 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
       
       const balanceBefore = await ethers.provider.getBalance(addr2.address);
       
+      await mine(30);
+      
+      // Get penalty rates
+      const penaltyRate1 = await staking.earlyWithdrawalPenalty(FIXED_30_DAYS);
+      const penaltyRate2 = await staking.earlyWithdrawalPenalty(FIXED_90_DAYS);
+      
+      const expectedPenalty1 = (stakeAmount1 * BigInt(penaltyRate1)) / BigInt(10000);
+      const expectedPenalty2 = (stakeAmount2 * BigInt(penaltyRate2)) / BigInt(10000);
+      const expectedReturn = (stakeAmount1 + stakeAmount2) - (expectedPenalty1 + expectedPenalty2);
+      
       // Emergency withdraw
       const tx = await staking.connect(addr2).emergencyWithdraw();
       const receipt = await tx.wait();
@@ -80,14 +95,20 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
       
       const balanceAfter = await ethers.provider.getBalance(addr2.address);
       
-      // Should get back total staked amount
       expect(balanceAfter - balanceBefore + gasUsed).to.be.closeTo(
-        stakeAmount1 + stakeAmount2, 
+        expectedReturn, 
         ethers.parseEther("1")
       );
     });
 
     it("Should not allow emergency withdrawal with zero balance", async function() {
+      // 确保用户没有质押
+      const stHSKBalance = await stHSK.balanceOf(addr1.address);
+      if (stHSKBalance > 0) {
+        await mine(30);
+        await staking.connect(addr1).emergencyWithdraw();
+      }
+      
       await expect(
         staking.connect(addr1).emergencyWithdraw()
       ).to.be.revertedWith("Nothing to withdraw");
@@ -99,12 +120,39 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
 
       const mineBlockNum = 3 * 24 * 60 * 30;
       await mine(mineBlockNum);
+      await mine(30);
 
       await staking.connect(addr1).emergencyWithdraw();
 
       const userStakes = await staking.getLockedStakeInfo(addr1.address, 0);
       const withdrawn = userStakes[4];
       expect(withdrawn).to.be.true;
+    });
+
+    it("Should allow withdrawal during lock period", async function() {
+      const stakeAmount = ethers.parseEther("200");
+      await staking.connect(addr3).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
+      
+      const balanceBefore = await ethers.provider.getBalance(addr3.address);
+
+      const mineBlockNum = 20;
+      await mine(mineBlockNum);
+      await mine(30);
+
+      // Get penalty rate
+      const penaltyRate = await staking.earlyWithdrawalPenalty(FIXED_365_DAYS);
+      const expectedPenalty = (stakeAmount * BigInt(penaltyRate)) / BigInt(10000);
+      const expectedReturn = stakeAmount - expectedPenalty;
+
+      const tx = await staking.connect(addr3).emergencyWithdraw();
+      const receipt = await tx.wait();
+      const gasUsed = receipt.gasUsed * receipt.gasPrice;
+      const balanceAfter = await ethers.provider.getBalance(addr3.address);
+
+      expect(balanceAfter - balanceBefore + gasUsed).to.be.closeTo(
+        expectedReturn,
+        ethers.parseEther("1")
+      );
     });
   });
 
@@ -150,27 +198,6 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
   });
 
   describe("emergencyWithdraw additional tests", function() {
-    it("Should allow withdrawal during lock period", async function() {
-      const stakeAmount = ethers.parseEther("200");
-      await staking.connect(addr3).stakeLocked(FIXED_365_DAYS, { value: stakeAmount });
-      
-      const balanceBefore = await ethers.provider.getBalance(addr3.address);
-
-      const mineBlockNum = 20;
-      await mine(mineBlockNum);
-
-      const tx = await staking.connect(addr3).emergencyWithdraw();
-      const receipt = await tx.wait();
-      const gasUsed = receipt.gasUsed * receipt.gasPrice;
-      const balanceAfter = await ethers.provider.getBalance(addr3.address);
-
-      expect(balanceAfter - balanceBefore + gasUsed).to.be.closeTo(
-        stakeAmount,
-        ethers.parseEther("1")
-      );
-    });
-
-
     it("Should burn stHSK tokens after emergency withdrawal", async function() {
       const stakeAmount = ethers.parseEther("200");
       await staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: stakeAmount });
@@ -178,6 +205,7 @@ describe("HashKeyChain Staking - Emergency Functions", function () {
       const stHSKBalanceBefore = await stHSK.balanceOf(addr1.address);
       const mineBlockNum = 20;
       await mine(mineBlockNum);
+      await mine(30);
 
       await staking.connect(addr1).emergencyWithdraw();
       const stHSKBalanceAfter = await stHSK.balanceOf(addr1.address);

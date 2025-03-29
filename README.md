@@ -127,8 +127,8 @@ npx hardhat run scripts/deploy.js --network hashkeyTestnet
 ## 🔄 Usage
 
 ```javascript
-// Stake HSK
-await stakingContract.stake({ value: ethers.parseEther("100") });
+// Stake HSK 
+await stakingContract.stakeFlexible({ value: ethers.parseEther("100") });
 
 // Stake with 90-day lock for increased APR
 await stakingContract.stakeLocked(FIXED_90_DAYS, { value: ethers.parseEther("500") });
@@ -136,8 +136,14 @@ await stakingContract.stakeLocked(FIXED_90_DAYS, { value: ethers.parseEther("500
 // View your staked balance
 const myStHSK = await stHSKToken.balanceOf(myAddress);
 
-// Unstake
-await stakingContract.unstake(ethers.parseEther("50"));
+// Unstake lock 
+await stakingContract.unstakeLocked(0);
+
+// Unstake flex
+await stakingContract.requestUnstakeFlexible(0);
+
+// wait two weeks
+await stakingContract.claimWithdrawal(0);
 ```
 
 ---
