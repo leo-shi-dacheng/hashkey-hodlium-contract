@@ -5,12 +5,12 @@ const { time, mine } = require("@nomicfoundation/hardhat-network-helpers");
 const { Console } = require("console");
 
 describe("HashKeyChain Staking - Flexible Staking", function () {
-  let staking, stHSK, owner, addr1, addr2, addr3;
+  let staking, stHSK, owner, addr1, addr2, addr3, addr4;
   const minStakeAmount = ethers.parseEther("100");
   const FLEXIBLE = 4; // 假设 StakeType.FLEXIBLE 的枚举值为 4
 
   before(async function () {
-    [owner, addr1, addr2, addr3] = await ethers.getSigners();
+    [owner, addr1, addr2, addr3, addr4] = await ethers.getSigners();
 
     // 部署合约
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
@@ -132,23 +132,23 @@ describe("HashKeyChain Staking - Flexible Staking", function () {
 
     it("Should handle multiple flexible stakes and withdrawals", async function () {
       // addr1 进行两次新的质押
-      await staking.connect(addr1).stakeFlexible({ value: minStakeAmount }); // stakeId = 1
-      await staking.connect(addr1).stakeFlexible({ value: minStakeAmount }); // stakeId = 2
-      await mine(3); // 快进到可以请求提款
-
+      await staking.connect(addr4).stakeFlexible({ value: minStakeAmount }); // stakeId = 0
+      await staking.connect(addr4).stakeFlexible({ value: minStakeAmount }); // stakeId = 1
+      await mine(10); // 快进到可以请求提款
       // 请求两个质押的提款
-      await staking.connect(addr1).requestUnstakeFlexible(1);
-      await staking.connect(addr1).requestUnstakeFlexible(2);
+      await staking.connect(addr4).requestUnstakeFlexible(0);
+      await staking.connect(addr4).requestUnstakeFlexible(1);
 
       const withdrawalWaitingBlocks = await staking.withdrawalWaitingBlocks();
       await mine(Number(withdrawalWaitingBlocks) + 1); // 快进到可提取
 
       // 提取两个提款请求
-      const balanceBefore = await ethers.provider.getBalance(addr1.address);
-      await staking.connect(addr1).claimWithdrawal(1); // withdrawalId = 1
-      await staking.connect(addr1).claimWithdrawal(2); // withdrawalId = 2
-      const balanceAfter = await ethers.provider.getBalance(addr1.address);
-
+      const balanceBefore = await ethers.provider.getBalance(addr4.address);
+      await staking.connect(addr4).claimWithdrawal(0); // withdrawalId = 0
+      await staking.connect(addr4).claimWithdrawal(1); // withdrawalId = 1
+      const balanceAfter = await ethers.provider.getBalance(addr4.address);
+      console.log('balanceBefore!!', balanceBefore);
+      console.log('balanceAfter!!', balanceAfter);
       expect(balanceAfter).to.be.above(balanceBefore); // 余额应增加
     });
 
