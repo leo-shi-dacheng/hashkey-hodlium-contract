@@ -338,7 +338,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         require(msg.value >= minStakeAmount, "Amount below minimum stake");
         require(block.timestamp < stakeEndTime, "Staking ended");
 
-        updateRewardPool1();
+        updateRewardPool();
 
         uint256 sharesAmount = getSharesForHSK(msg.value);
         require(sharesAmount > 0, "Shares amount cannot be zero");
@@ -401,7 +401,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             "Too early to request withdrawal"
         );
 
-        updateRewardPool1();
+        updateRewardPool();
 
         uint256 sharesToBurn = stake.sharesAmount;
         // uint256 hskToReturn = getHSKForShares(sharesToBurn);
