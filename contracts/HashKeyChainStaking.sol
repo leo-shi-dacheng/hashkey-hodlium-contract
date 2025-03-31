@@ -9,7 +9,6 @@ import "./StHSK.sol";
 import "./HashKeyChainStakingOperations.sol";
 import "./HashKeyChainStakingAdmin.sol";
 import "./HashKeyChainStakingEmergency.sol";
-import 'hardhat/console.sol';
 
 /**
  * @title HashKeyChainStaking
