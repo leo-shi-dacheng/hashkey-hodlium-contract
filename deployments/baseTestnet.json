@@ -1,0 +1,8 @@
+{
+  "network": "baseTestnet",
+  "implementation": "0x75F27309EEf5412e2844766c6a4A1f5CF7CfEe1F",
+  "proxyAdmin": "0xca97cFe35e155d449bD4FA165d6Bb71BC9bE9665",
+  "proxy": "0x56E45F362cf4Bbfb5a99e631eF177f2907146483",
+  "deployer": "0xEc7b4019CF071134Ccc5481B29f86B5A2ea6f31d",
+  "timestamp": "2025-03-23T14:27:39.891Z"
+}

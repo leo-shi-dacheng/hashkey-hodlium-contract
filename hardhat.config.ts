@@ -29,7 +29,7 @@ const config: HardhatUserConfig = {
     },
     hashkeyMainnet: {
       url: "https://mainnet.hsk.xyz",
-      accounts: [process.env.TEST_STAKE!!],
+      accounts: [process.env.MAINNET!!],
       chainId: 177,
       gasPrice: "auto",
     },
