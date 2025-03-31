@@ -8,6 +8,7 @@ describe("HashKeyChain Staking - Security Penetration Tests", function () {
   let staking, stHSK, owner, attacker, user;
   let attackerContract;
   const minStakeAmount = ethers.parseEther("100");
+  const FIXED_30_DAYS = 30 * 24 * 60 * 60; // 30 days in seconds
   
   before(async function () {
     [owner, attacker, user] = await ethers.getSigners();
@@ -59,7 +60,7 @@ describe("HashKeyChain Staking - Security Penetration Tests", function () {
       }
       
       // Set up legitimate stake first
-      await staking.connect(user).stake({ value: ethers.parseEther("200") });
+      await staking.connect(user).stakeLocked(FIXED_30_DAYS, { value: ethers.parseEther("200") });
       
       // Fund the attacker contract
       await attacker.sendTransaction({
@@ -120,22 +121,19 @@ describe("HashKeyChain Staking - Security Penetration Tests", function () {
     it("Should handle multiple stakes and unstakes without running out of gas", async function() {
       // Create multiple stakes
       for (let i = 0; i < 5; i++) {
-        await staking.connect(user).stake({ value: minStakeAmount });
+        await staking.connect(user).stakeLocked(FIXED_30_DAYS, { value: minStakeAmount });
       }
       
       // Ensure we can still stake
-      await staking.connect(user).stake({ value: minStakeAmount });
+      await staking.connect(user).stakeLocked(FIXED_30_DAYS, { value: minStakeAmount });
       
       // Ensure we can still unstake
-      await staking.connect(user).unstake(minStakeAmount);
+      await staking.connect(user).unstakeLocked(0);
     });
     
     it("Should not be vulnerable to block gas limit attacks", async function() {
-      // This would be a more thorough test in a local network where we can manipulate the block gas limit
-      // For now, we just check that operations are gas-efficient
-      
       // Check gas used for staking
-      const stakeTx = await staking.connect(user).stake({ value: minStakeAmount });
+      const stakeTx = await staking.connect(user).stakeLocked(FIXED_30_DAYS, { value: minStakeAmount });
       const receipt = await stakeTx.wait();
       
       // Ensure gas usage is reasonable

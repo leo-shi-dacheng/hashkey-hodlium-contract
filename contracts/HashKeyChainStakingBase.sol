@@ -282,7 +282,32 @@ abstract contract HashKeyChainStakingBase is
         
         lastRewardBlock = block.number;
     }
-
+    // 计算修正比例因子 r_i
+    function calculateCorrectionFactor(StakeType stakeType) public view returns (uint256) {
+        // 计算所有池的总加权质押量
+        uint256 totalWeightedShares = 0;
+        for (uint256 i = 0; i < 5; i++) {
+            StakeType currentType = StakeType(i);
+            totalWeightedShares += maxAPRs[currentType] * totalSharesByStakeType[currentType];
+        }
+        // 避免除以零
+        if (totalWeightedShares == 0) {
+            return 1;
+        }
+        
+        // 计算指定池的加权质押量
+        uint256 weightedShares = maxAPRs[stakeType] * totalSharesByStakeType[stakeType];
+        
+        // 计算占总质押的百分比
+        uint256 percentOfTotalShares = totalSharesByStakeType[stakeType] * BASIS_POINTS / totalWeightedShares;
+        
+        // 如果百分比为0，避免除以零
+        if (percentOfTotalShares == 0) {
+            return (weightedShares * BASIS_POINTS) / totalWeightedShares;
+        }
+        
+        return (weightedShares * BASIS_POINTS) / totalWeightedShares;
+    }
     /**
      * @dev Calculate HSK amount for specified share amount
      * @param _sharesAmount Share amount
@@ -298,6 +323,53 @@ abstract contract HashKeyChainStakingBase is
 
         return (_sharesAmount * totalPooledHSK + unClaimedRewards) / totalShares;
     }
+
+    function getHSKForSharesByType(uint256 _sharesAmount, StakeType stakeType) public view returns (uint256) {
+        uint256 totalShares = stHSK.totalSupply();
+        if (totalShares == 0) {
+            return _sharesAmount; // Initial 1:1 exchange rate
+        }
+        if (totalSharesByStakeType[stakeType] == 0) {
+            return _sharesAmount; // Initial 1:1 exchange rate
+        }
+        uint256 totalRewards = hskPerBlock * (block.number - startBlock);
+        uint256 unClaimedRewards = totalRewards - totalPaidRewards;
+
+        uint256 ratio = calculateCorrectionFactor(stakeType);
+        //  reward 不能超 最大 APR
+        uint256 reward = _sharesAmount * unClaimedRewards * ratio / (totalSharesByStakeType[stakeType] * BASIS_POINTS);
+        uint256 base =  (_sharesAmount * totalPooledHSK) / totalShares;
+        uint256 maxReward = _sharesAmount * maxAPRs[stakeType] / BASIS_POINTS;
+        if (reward > maxReward) {
+            reward = maxReward;
+        }
+        return reward + base;
+    }
+
+   /**
+     * @dev Calculate HSK amount for specified share amount based on lock duration
+     * @param _sharesAmount Share amount
+     * @param _lockDuration Duration in seconds for which tokens will be locked
+     * @return HSK amount
+     */
+    function getHSKForSharesByDuration(uint256 _sharesAmount, uint256 _lockDuration) public view returns (uint256) {
+        StakeType stakeType;
+        
+        if (_lockDuration == 0) {
+            stakeType = StakeType.FLEXIBLE;
+        } else if (_lockDuration <= 30 days) {
+            stakeType = StakeType.FIXED_30_DAYS;
+        } else if (_lockDuration <= 90 days) {
+            stakeType = StakeType.FIXED_90_DAYS;
+        } else if (_lockDuration <= 180 days) {
+            stakeType = StakeType.FIXED_180_DAYS;
+        } else {
+            stakeType = StakeType.FIXED_365_DAYS;
+        }
+        
+        return getHSKForSharesByType(_sharesAmount, stakeType);
+    }
+
 
     /**
      * @dev Calculate share amount for specified HSK amount

@@ -7,59 +7,8 @@ import "./HashKeyChainStakingBase.sol";
  * @title HashKeyChainStakingOperations
  * @dev Implementation of staking operations, using a share-based model
  */
-import "hardhat/console.sol";
 
 abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
-    /**
-     * @dev Regular staking (unlocked), directly receives stHSK
-     */
-    function stake() external payable nonReentrant whenNotPaused {
-        // Strict validation of minimum stake amount
-        require(msg.value >= minStakeAmount, "Amount below minimum stake");
-        require(block.timestamp < stakeEndTime, "Staking ended");
-
-        // Update reward pool
-        updateRewardPool();
-
-        // Calculate shares to mint
-        uint256 sharesAmount = getSharesForHSK(msg.value);
-
-        // 验证股份数量不为零
-        require(sharesAmount > 0, "Shares amount cannot be zero");
-
-        // 处理第一次质押的最小流动性
-        if (!initialLiquidityMinted) {
-            require(
-                sharesAmount >= MINIMUM_LIQUIDITY,
-                "Initial stake too small"
-            );
-            initialLiquidityMinted = true;
-            // 将最小流动性发送到死地址
-            stHSK.mint(
-                0x000000000000000000000000000000000000dEaD,
-                MINIMUM_LIQUIDITY
-            );
-            sharesAmount -= MINIMUM_LIQUIDITY;
-        }
-
-        // Update total staked amount
-        totalPooledHSK += msg.value;
-
-        // 更新未锁定质押的总量
-        totalUnlockedShares += sharesAmount;
-
-        // Mint stHSK tokens
-        stHSK.mint(msg.sender, sharesAmount);
-
-        emit Stake(
-            msg.sender,
-            msg.value,
-            sharesAmount,
-            StakeType.FIXED_30_DAYS,
-            0,
-            0
-        );
-    }
 
     /**
      * @dev Locked staking, with fixed lock period and additional rewards
@@ -158,8 +107,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         // Calculate penalty (if early withdrawal)
         uint256 penalty = 0;
         uint256 sharesToBurn = lockedStake.sharesAmount;
-        uint256 hskToReturn = getHSKForShares(sharesToBurn);
-
+        // uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        uint256 hskToReturn = getHSKForSharesByDuration(sharesToBurn, lockedStake.lockDuration);
         // 确定质押类型并更新该类型的质押总量
         StakeType stakeType;
         if (lockedStake.lockDuration == 30 days)
@@ -230,6 +179,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         );
         require(transferSuccess, "HSK transfer failed");
 
+
         emit Unstake(
             msg.sender,
             sharesToBurn,
@@ -237,78 +187,6 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             isEarlyWithdrawal,
             penalty,
             _stakeId
-        );
-    }
-
-    /**
-     * @dev Unstake regular (unlocked) stake
-     * @param _sharesAmount Share amount to unstake
-     */
-    function unstake(uint256 _sharesAmount) external nonReentrant {
-        require(_sharesAmount > 0, "Cannot unstake 0");
-        require(
-            stHSK.balanceOf(msg.sender) >= _sharesAmount,
-            "Insufficient stHSK balance"
-        );
-
-        // Update reward pool
-        updateRewardPool();
-
-        // Calculate HSK amount to return
-        uint256 hskToReturn = getHSKForShares(_sharesAmount);
-
-        // 计算原始质押金额和奖励部分
-        // 对于普通质押，我们没有记录原始质押金额，所以需要估算
-        // 使用当前的shares比例来估算原始质押部分
-        uint256 totalShares = stHSK.totalSupply();
-        uint256 originalStakeRatio = (_sharesAmount * BASIS_POINTS) /
-            totalShares;
-        uint256 originalStake = (totalPooledHSK * originalStakeRatio) /
-            BASIS_POINTS;
-
-        // 确保原始质押不超过返还金额
-        if (originalStake > hskToReturn) {
-            originalStake = hskToReturn;
-        }
-
-        uint256 rewardPart = hskToReturn - originalStake;
-
-        // 更新总质押金额，只减去原始质押部分
-        totalPooledHSK -= originalStake;
-
-        // 如果有奖励部分，从已支付奖励中减去
-        if (rewardPart > 0) {
-            // 确保不会减去超过已支付奖励的金额
-            if (rewardPart > totalPaidRewards) {
-                rewardPart = totalPaidRewards;
-            }
-            totalPaidRewards -= rewardPart;
-            totalPooledHSK -= rewardPart;
-        }
-
-        if (_sharesAmount <= totalUnlockedShares) {
-            totalUnlockedShares -= _sharesAmount;
-        } else {
-            // 如果提取的数量超过了未锁定的总量，说明用户提取了一部分锁定的质押
-            // 这种情况在实际中不应该发生，因为锁定的质押应该通过unstakeLocked提取
-            // 这里只是为了防止totalUnlockedShares变为负数
-            totalUnlockedShares = 0;
-        }
-
-        // Burn stHSK tokens
-        stHSK.burn(msg.sender, _sharesAmount);
-
-        // Return HSK tokens
-        bool success = safeHskTransfer(payable(msg.sender), hskToReturn);
-        require(success, "HSK transfer failed");
-
-        emit Unstake(
-            msg.sender,
-            _sharesAmount,
-            hskToReturn,
-            false,
-            0,
-            type(uint256).max
         );
     }
 
@@ -347,7 +225,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         }
 
         // 计算当前HSK价值 - 复用getHSKForShares逻辑
-        uint256 currentHskValue = getHSKForShares(userStake.sharesAmount);
+        uint256 currentHskValue = getHSKForSharesByDuration(userStake.sharesAmount, userStake.lockDuration);
 
         // 原始质押金额
         originalAmount = userStake.hskAmount;
@@ -432,7 +310,7 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         }
 
         // 计算当前HSK价值 - 复用getHSKForShares逻辑
-        uint256 currentHskValue = getHSKForShares(userStake.sharesAmount);
+        uint256 currentHskValue = getHSKForSharesByType(userStake.sharesAmount, StakeType.FLEXIBLE);
 
         // 原始质押金额
         originalAmount = userStake.hskAmount;
@@ -526,7 +404,8 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
         updateRewardPool1();
 
         uint256 sharesToBurn = stake.sharesAmount;
-        uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        // uint256 hskToReturn = getHSKForShares(sharesToBurn);
+        uint256 hskToReturn = getHSKForSharesByType(sharesToBurn, StakeType.FLEXIBLE);
 
         uint256 totalShares = stHSK.totalSupply();
         uint256 originalStakeRatio = (sharesToBurn * BASIS_POINTS) /
@@ -537,7 +416,6 @@ abstract contract HashKeyChainStakingOperations is HashKeyChainStakingBase {
             originalStake = hskToReturn;
         }
         uint256 rewardPart = hskToReturn - originalStake;
-        // console.log('requestUnstakeFlexible: rewardPart', rewardPart);
 
         totalPooledHSK -= originalStake;
         if (rewardPart > 0) {

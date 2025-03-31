@@ -22,8 +22,15 @@ abstract contract HashKeyChainStakingEmergency is HashKeyChainStakingAdmin {
         // Calculate HSK amount to return
         uint256 hskToReturn = getHSKForShares(shareBalance);
         
+        // Apply penalty for early withdrawal
+        uint256 penalty = (hskToReturn * earlyWithdrawalPenalty[StakeType.FIXED_365_DAYS]) / BASIS_POINTS;
+        hskToReturn -= penalty;
+        
         // Update total staked amount
         totalPooledHSK -= hskToReturn;
+        
+        // Add penalty to reserved rewards
+        reservedRewards += penalty;
         
         // Burn stHSK tokens
         stHSK.burn(msg.sender, shareBalance);

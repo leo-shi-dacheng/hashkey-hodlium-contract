@@ -5,10 +5,10 @@ const { upgrades } = require("hardhat");
 describe("HashKeyChain Staking - Admin Functions", function () {
   let staking, owner, addr1;
   const minStakeAmount = ethers.parseEther("100");
+  const FIXED_30_DAYS = 0;
   
   before(async function () {
     [owner, addr1] = await ethers.getSigners();
-    
     // Deploy contract
     const HashKeyChainStaking = await ethers.getContractFactory("HashKeyChainStaking");
     staking = await upgrades.deployProxy(HashKeyChainStaking, [
@@ -45,8 +45,8 @@ describe("HashKeyChain Staking - Admin Functions", function () {
     
     // Try to stake (should fail)
     await expect(
-      staking.connect(addr1).stake({ value: ethers.parseEther("200") })
-    ).to.be.revertedWithCustomError(staking, "EnforcedPause");
+      staking.connect(addr1).stakeLocked(FIXED_30_DAYS, { value: ethers.parseEther("200") })
+    ).to.be.revertedWith("Pausable: paused");
     
     // Unpause contract
     await staking.connect(owner).unpause();

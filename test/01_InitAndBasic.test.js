@@ -57,12 +57,12 @@ describe("HashKeyChain Staking - Initialization & Basic", function () {
   describe("Basic Staking", function() {
     it("Should reject stake below minimum", async function() {
       await expect(
-        staking.connect(addr1).stake({ value: ethers.parseEther("50") })
+        staking.connect(addr1).stakeLocked(FIXED_90_DAYS, { value: ethers.parseEther("50") })
       ).to.be.revertedWith("Amount below minimum stake");
     });
     
     it("Should accept valid stake", async function() {
-      const tx = await staking.connect(addr1).stake({
+      const tx = await staking.connect(addr1).stakeLocked(FIXED_90_DAYS, {
         value: minStakeAmount
       });
       await tx.wait();

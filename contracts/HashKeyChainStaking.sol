@@ -9,6 +9,7 @@ import "./StHSK.sol";
 import "./HashKeyChainStakingOperations.sol";
 import "./HashKeyChainStakingAdmin.sol";
 import "./HashKeyChainStakingEmergency.sol";
+import 'hardhat/console.sol';
 
 /**
  * @title HashKeyChainStaking
@@ -60,9 +61,16 @@ contract HashKeyChainStaking is
         if (_annualBudget > 0) {
             annualRewardsBudget = _annualBudget;
         }
+
+        // 获取最大APR值
+        maxAPRs[StakeType.FIXED_30_DAYS] = 360;   // MAX_APR_30_DAYS - 3.6%
+        maxAPRs[StakeType.FIXED_90_DAYS] = 1000;  // MAX_APR_90_DAYS - 10% 
+        maxAPRs[StakeType.FIXED_180_DAYS] = 1800;  // MAX_APR_180_DAYS - 18%
+        maxAPRs[StakeType.FIXED_365_DAYS] = 3600;  // MAX_APR_365_DAYS - 36%
+        maxAPRs[StakeType.FLEXIBLE] = 180;   // MAX_APR_FLEXIBLE - 1.8%
         
         // 更新版本号
-        version = 2;
+        version = 3;
         emit StakingContractUpgraded(version);
     }
 
@@ -133,7 +141,8 @@ contract HashKeyChainStaking is
         return (
             stake.sharesAmount,
             stake.hskAmount,
-            getHSKForShares(stake.sharesAmount),
+            // getHSKForShares(stake.sharesAmount),
+            getHSKForSharesByDuration(stake.sharesAmount, stake.lockDuration),
             stake.lockEndTime,
             stake.withdrawn,
             block.timestamp < stake.lockEndTime
@@ -161,11 +170,6 @@ contract HashKeyChainStaking is
         estimatedAPRs[3] = getCurrentAPR(_stakeAmount, StakeType.FIXED_365_DAYS);
         estimatedAPRs[4] = getCurrentAPR(_stakeAmount, StakeType.FLEXIBLE);
         
-        maxAPRs[0] = 360;   // MAX_APR_30_DAYS - 修改为3.6%
-        maxAPRs[1] = 1000;  // MAX_APR_90_DAYS - 修改为10% 
-        maxAPRs[2] = 1800;  // MAX_APR_180_DAYS - 修改为18%
-        maxAPRs[3] = 3600;  // MAX_APR_365_DAYS - 修改为36%
-        maxAPRs[4] = 180;   // MAX_APR_FLEXIBLE - 修改为1.8%
 
         return (estimatedAPRs, maxAPRs);
     }
