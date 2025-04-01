@@ -147,4 +147,18 @@ abstract contract HashKeyChainStakingAdmin is HashKeyChainStakingOperations {
         withdrawalWaitingBlocks = _newWithdrawalWaitingBlocks;
         emit WithdrawalWaitingBlocksUpdated(oldValue, _newWithdrawalWaitingBlocks);
     }
+
+    /**
+     * @dev Update max apr
+     * @param _stakeType Stake type
+     * @param _apr New apr rate (basis points)
+     */
+    function updateMaxAPRs(StakeType _stakeType, uint256 _apr) external onlyOwner {
+        require(_apr <= 3600, "APR too high");
+        
+        uint256 oldValue = maxAPRs[_stakeType];
+        maxAPRs[_stakeType] = _apr;
+        
+        emit MaxAPRsUpdated(_stakeType, oldValue, _apr);
+    }
 }
