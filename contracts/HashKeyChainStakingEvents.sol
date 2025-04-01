@@ -24,7 +24,7 @@ abstract contract HashKeyChainStakingEvents is HashKeyChainStakingStorage {
     event ExchangeRateUpdated(uint256 totalPooledHSK, uint256 totalShares, uint256 newRate);
     event AnnualBudgetUpdated(uint256 oldValue, uint256 newValue);
     event BlockTimeUpdated(uint256 oldBlockTime, uint256 newBlockTime);
-
+    event MaxAPRsUpdated(StakeType stakeType, uint256 oldValue, uint256 newValue);
     
     // Events for flexible staking operations
     event RequestUnstakeFlexible(address indexed user, uint256 indexed stakeId, uint256 hskAmount, uint256 claimableBlock);
