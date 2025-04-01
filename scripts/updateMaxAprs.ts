@@ -36,31 +36,31 @@ async function main() {
 
     // Update 30 days APR
     console.log("\nUpdating 30 DAYS MAX APR...");
-    const tx30 = await stakingContract.updateMaxAPRs(FIXED_30_DAYS, 360);
+    const tx30 = await stakingContract.updateMaxAPRs(FIXED_30_DAYS, 10);
     await tx30.wait();
     console.log("Successfully updated 30 DAYS MAX APR to 3.6%!");
 
     // Update 90 days APR
     console.log("\nUpdating 90 DAYS MAX APR...");
-    const tx90 = await stakingContract.updateMaxAPRs(FIXED_90_DAYS, 1000);
+    const tx90 = await stakingContract.updateMaxAPRs(FIXED_90_DAYS, 10);
     await tx90.wait();
     console.log("Successfully updated 90 DAYS MAX APR to 10%!");
 
     // Update 180 days APR
     console.log("\nUpdating 180 DAYS MAX APR...");
-    const tx180 = await stakingContract.updateMaxAPRs(FIXED_180_DAYS, 1800);
+    const tx180 = await stakingContract.updateMaxAPRs(FIXED_180_DAYS, 10);
     await tx180.wait();
     console.log("Successfully updated 180 DAYS MAX APR to 18%!");
 
     // Update 365 days APR
     console.log("\nUpdating 365 DAYS MAX APR...");
-    const tx365 = await stakingContract.updateMaxAPRs(FIXED_365_DAYS, 3600);
+    const tx365 = await stakingContract.updateMaxAPRs(FIXED_365_DAYS, 10);
     await tx365.wait();
     console.log("Successfully updated 365 DAYS MAX APR to 36%!");
 
     // Update flexible APR
     console.log("\nUpdating FLEXIBLE MAX APR...");
-    const txFlexible = await stakingContract.updateMaxAPRs(FLEXIBLE, 180);
+    const txFlexible = await stakingContract.updateMaxAPRs(FLEXIBLE, 10);
     await txFlexible.wait();
     console.log("Successfully updated FLEXIBLE MAX APR to 1.8%!");
 
